@@ -1,6 +1,6 @@
 {
   "name": "@shared-state/core",
-  "version": "0.0.4",
+  "version": "0.0.5",
   "description": "",
   "types": "dist/index.d.ts",
   "scripts": {
@@ -14,8 +14,7 @@
     "shared-state"
   ],
   "files": [
-    "es",
-    "types"
+    "dist"
   ],
   "author": "MarkLi",
   "license": "MIT",
