@@ -28,3 +28,9 @@ export type SharedStateFamily<T> = {
   ) => () => void;
   destroy: (key?: SharedStateFamilyMemberKey) => void;
 };
+
+export type DerivedSharedStateValueGetter<T> = (
+  getSharedStateValue: <SharedStateValue>(
+    sharedState: SharedState<SharedStateValue>
+  ) => SharedStateValue
+) => T;

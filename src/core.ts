@@ -1,4 +1,5 @@
 import {
+  DerivedSharedStateValueGetter,
   SharedState,
   SharedStateFamily,
   SharedStateFamilyMemberKey,
@@ -35,11 +36,7 @@ export function createSharedState<T>(initialValue: T): SharedState<T> {
 }
 
 export function createDerivedSharedState<T>(
-  getValue: (
-    getSharedStateValue: <SharedStateValue>(
-      sharedState: SharedState<SharedStateValue>
-    ) => SharedStateValue
-  ) => T,
+  getValue: DerivedSharedStateValueGetter<T>,
   setValue?: () => void
 ): SharedState<T> {
   const subscriberSet = new Set<Subscriber<T>>();
