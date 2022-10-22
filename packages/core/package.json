@@ -1,0 +1,17 @@
+{
+  "name": "@shared-state/core",
+  "author": "Mark Li",
+  "version": "0.0.9",
+  "description": "",
+  "keywords": [
+    "shared-state"
+  ],
+  "license": "MIT",
+  "type": "module",
+  "types": "dist/index.d.ts",
+  "main": "dist/index.cjs",
+  "module": "dist/index.mjs",
+  "files": [
+    "dist"
+  ]
+}

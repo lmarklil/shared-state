@@ -1,7 +1,4 @@
-import {
-  ReadOnlySharedState,
-  SharedState,
-} from "../types";
+import { ReadOnlySharedState, SharedState } from "@shared-state/core";
 
 export function logger<T>(key: string) {
   return (sharedState: SharedState<T> | ReadOnlySharedState<T>) => {

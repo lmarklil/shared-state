@@ -1,8 +1,7 @@
 import { DebounceSettings } from "lodash";
 import debounce from "lodash/debounce";
 
-import { SharedStateMiddleware } from "../types";
-import { getPartialValue } from "../utils";
+import { SharedStateMiddleware, getPartialValue } from "@shared-state/core";
 
 export type Storage = {
   getItem: (key: string) => string;

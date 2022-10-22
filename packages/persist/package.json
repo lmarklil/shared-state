@@ -1,0 +1,20 @@
+{
+  "name": "@shared-state/persist",
+  "author": "Mark Li",
+  "version": "0.0.1",
+  "description": "",
+  "keywords": [
+    "shared-state"
+  ],
+  "license": "MIT",
+  "type": "module",
+  "types": "dist/index.d.ts",
+  "main": "dist/index.cjs",
+  "module": "dist/index.mjs",
+  "files": [
+    "dist"
+  ],
+  "dependencies": {
+    "@shared-state/core": "workspace:"
+  }
+}
