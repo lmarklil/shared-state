@@ -65,13 +65,13 @@ export function persist<T>(options: {
     }
 
     const debouncedSetStorage = debounce(
-      (state) => {
+      (value) => {
         if (!hasHydrated) return;
 
         storage.setItem(
           key,
           serialize({
-            state,
+            value,
             version,
           })
         );
@@ -83,11 +83,11 @@ export function persist<T>(options: {
     return {
       ...sharedState,
       set: (partial) => {
-        const nextState = getPartialValue(sharedState.get(), partial);
+        const nextValue = getPartialValue(sharedState.get(), partial);
 
-        sharedState.set(nextState);
+        sharedState.set(nextValue);
 
-        debouncedSetStorage(nextState);
+        debouncedSetStorage(nextValue);
       },
     };
   };
