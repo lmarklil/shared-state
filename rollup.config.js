@@ -28,10 +28,10 @@ export default {
       declarationDir: "dist/types",
       exclude: ["tests"],
     }),
-    // babel({
-    //   babelHelpers: "bundled",
-    //   // extensions: ["js", "ts"],
-    // }),
+    babel({
+      babelHelpers: "bundled",
+      extensions: ["js", "ts"],
+    }),
   ],
   external: Object.keys(pkg.peerDependencies),
 };
