@@ -1,7 +1,11 @@
 {
   "name": "@shared-state/react",
   "author": "Mark Li",
-  "version": "0.0.1",
+  "repository": {
+    "type": "git",
+    "url": "git@github.com:lmarklil/shared-state.git"
+  },
+  "version": "0.0.3",
   "description": "",
   "keywords": [
     "shared-state"
