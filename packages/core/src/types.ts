@@ -1,6 +1,6 @@
-export type Subscriber<T> = (nextState: T, previousState: T) => void;
+export type Subscriber<T> = (nextValue: T, previousValue: T) => void;
 
-export type NextStateGetter<T> = (previousState: T) => T;
+export type NextStateGetter<T> = (previousValue: T) => T;
 
 export type Partial<T> = T | NextStateGetter<T>;
 
