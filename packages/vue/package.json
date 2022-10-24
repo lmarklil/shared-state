@@ -1,0 +1,30 @@
+{
+  "name": "@shared-state/vue",
+  "author": "Mark Li",
+  "repository": {
+    "type": "git",
+    "url": "git@github.com:lmarklil/shared-state.git"
+  },
+  "version": "0.0.3",
+  "description": "",
+  "keywords": [
+    "shared-state"
+  ],
+  "license": "MIT",
+  "type": "module",
+  "types": "dist/index.d.ts",
+  "main": "dist/index.cjs",
+  "module": "dist/index.mjs",
+  "files": [
+    "dist"
+  ],
+  "dependencies": {
+    "@shared-state/core": "workspace:"
+  },
+  "devDependencies": {
+    "vue": "^3.2.41"
+  },
+  "peerDependencies": {
+    "vue": ">=2.7"
+  }
+}
