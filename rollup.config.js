@@ -45,4 +45,5 @@ export default [
   createBuildConfig("core"),
   createBuildConfig("react", ["react"]),
   createBuildConfig("vue", ["vue"]),
+  createBuildConfig("persist"),
 ];

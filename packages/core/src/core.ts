@@ -37,7 +37,7 @@ export function createSharedState<T>(initialValue: T): SharedState<T> {
 
 export function createDerivedSharedState<T>(
   getValue: DerivedSharedStateValueGetter<T>,
-  setValue?: () => void
+  setValue?: () => void // TODO 重新设计
 ): SharedState<T> {
   const subscriberSet = new Set<Subscriber<T>>();
   const dependenceMap = new Map();
