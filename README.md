@@ -31,7 +31,7 @@ counter.destroy(); // 销毁状态
 ### 在 React 函数组件中使用
 
 ```jsx
-import { createSharedState } from "@shared-state";
+import { createSharedState } from "@shared-state/core";
 import { useSharedState } from "@shared-state/react";
 
 const sharedCount = createSharedState(0);
@@ -130,7 +130,3 @@ const counter = createPersistentSharedState(0);
 ## API
 
 TODO
-
-## TODO
-
-- 支持异步依赖

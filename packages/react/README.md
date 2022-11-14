@@ -15,7 +15,7 @@ pnpm install @shared-state/core @shared-state/react
 ### Using with Function Component
 
 ```jsx
-import { createSharedState } from "@shared-state";
+import { createSharedState } from "@shared-state/core";
 import { useSharedState } from "@shared-state/react";
 
 const sharedCount = createSharedState(0);
