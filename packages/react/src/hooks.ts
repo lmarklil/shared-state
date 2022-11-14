@@ -4,7 +4,7 @@ import {
   SharedState,
   SharedStateFamily,
   SharedStateFamilyMemberKey,
-  getSharedStateFamilyMember,
+  selectSharedStateFamilyMember,
 } from "@shared-state/core";
 
 export function useSharedStateValue<T>(sharedState: SharedState<T>) {
@@ -17,12 +17,12 @@ export function useSharedState<T>(
   return [useSharedStateValue(sharedState), sharedState.set];
 }
 
-export function useSharedStateFamily<T>(
+export function useSharedStateFamilyMember<T>(
   sharedStateFamily: SharedStateFamily<T>,
   key: SharedStateFamilyMemberKey
 ) {
   const sharedState = useMemo(
-    () => getSharedStateFamilyMember(sharedStateFamily, key),
+    () => selectSharedStateFamilyMember(sharedStateFamily, key),
     [key, sharedStateFamily]
   );
 

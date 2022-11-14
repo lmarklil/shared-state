@@ -1,11 +1,11 @@
 import {
   DerivedSharedStateValueGetter,
+  NextStateGetter,
   SharedState,
   SharedStateFamily,
   SharedStateFamilyMemberKey,
   Subscriber,
 } from "./types";
-import { getPartialValue } from "./utils";
 
 export function createSharedState<T>(initialValue: T): SharedState<T> {
   let value = initialValue;
@@ -16,7 +16,10 @@ export function createSharedState<T>(initialValue: T): SharedState<T> {
     set: (partial) => {
       const previousValue = value;
 
-      const nextValue = getPartialValue(value, partial);
+      const nextValue =
+        typeof partial === "function"
+          ? (partial as NextStateGetter<T>)(previousValue)
+          : partial;
 
       if (nextValue === previousValue) return;
 
@@ -121,5 +124,17 @@ export function createSharedStateFamily<T>(
         }
       }
     },
+  };
+}
+
+export function selectSharedStateFamilyMember<T>(
+  sharedStateFamily: SharedStateFamily<T>,
+  key: SharedStateFamilyMemberKey
+): SharedState<T> {
+  return {
+    get: () => sharedStateFamily.get(key),
+    set: (partial) => sharedStateFamily.set(key, partial),
+    subscribe: (handler) => sharedStateFamily.subscribe(key, handler),
+    destroy: () => sharedStateFamily.destroy(key),
   };
 }
