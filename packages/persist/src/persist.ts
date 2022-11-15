@@ -1,18 +1,18 @@
 import { SharedStateMiddleware } from "@shared-state/core";
-import { StorageValue } from "./types";
+import { StorageValue, Storage } from "./types";
 
 export function persist<T>(options: {
   key: string;
-  version?: number;
-  migrate?: (value: any, version?: number) => T;
-  storage?: Storage;
+  storage: Storage;
   serialize?: (value: StorageValue<T>) => string;
   deserialize?: (value: string) => StorageValue<T>;
+  version?: number;
+  migrate?: (value: any, version?: number) => T;
 }): SharedStateMiddleware<T> {
   const {
     key,
-    storage = localStorage,
-    version = 0,
+    storage,
+    version,
     migrate,
     serialize = JSON.stringify,
     deserialize = JSON.parse,
