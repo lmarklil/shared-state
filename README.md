@@ -1,34 +1,34 @@
 # Shared State
 
-一个简单的原子化共享状态工具，实现参考了 Zustand
+A shared state library for JavaScript
 
-## 安装
+## Installation
 
 ```
 pnpm install @shared-state/core
 ```
 
-## 快速开始
+## Quick Start
 
-### 基本操作
+### Basic
 
 ```js
 import { createSharedState } from "@shared-state/core";
 
 const counter = createSharedState(0);
 
-counter.get(); // 获取状态
+counter.get(); // Get state
 
-counter.set((count) => count + 1); // 更新状态
+counter.set((count) => count + 1); // Update state
 
 counter.subscribe(({ previousState, nextState }) =>
   console.log(previousState, nextState)
-); // 订阅状态
+); // Subscribe state
 
-counter.destroy(); // 销毁状态
+counter.destroy(); // Destroy state
 ```
 
-### 在 React 函数组件中使用
+### Using with React function component
 
 ```jsx
 import { createSharedState } from "@shared-state/core";
@@ -45,7 +45,7 @@ function Counter() {
 }
 ```
 
-### 在 React 类组件中使用
+### Using with React class component
 
 ```jsx
 import { Component } from "react";
@@ -68,9 +68,7 @@ class Counter extends Component {
 }
 ```
 
-### 派生状态
-
-在 SharedState 中，一个状态可以由另一个状态派生而来，且这个派生状态会随着原始状态的更新而更新
+### Derived state
 
 ```js
 import {
@@ -91,9 +89,9 @@ sharedCount.set((count) => count + 1);
 console.log(sharedCount.get(), sharedDoubleCount.get()); // count:1, doubleCount:2
 ```
 
-### 中间件
+### Middleware
 
-有时我们需要扩展 SharedState 的功能（如：将 SharedState 持久化到 Storage 中），此时可以利用高阶函数的模式扩展 SharedState
+#### Custom middleware
 
 ```js
 import { createSharedState } from "@shared-state/core";
@@ -109,7 +107,7 @@ function logger(sharedState) {
 const counter = logger(createSharedState(0));
 ```
 
-可以用 Lodash 的 flow 函数解决嵌套过深的问题
+#### Combination middleware with lodash flow function
 
 ```js
 import { createSharedState } from "@shared-state/core";
