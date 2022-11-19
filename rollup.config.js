@@ -46,4 +46,5 @@ export default [
   createBuildConfig("react", ["react"]),
   createBuildConfig("vue", ["vue"]),
   createBuildConfig("persist"),
+  createBuildConfig("logger"),
 ];
