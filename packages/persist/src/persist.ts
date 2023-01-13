@@ -22,18 +22,20 @@ export function persist<T>(options: {
     const persistValue = storage.getItem(key);
 
     if (persistValue) {
-      const deserializedPersistValue = deserialize(persistValue);
+      try {
+        const deserializedPersistValue = deserialize(persistValue);
 
-      if (deserializedPersistValue.version === version) {
-        sharedState.set(deserializedPersistValue.value);
-      } else if (deserializedPersistValue.version !== version && migrate) {
-        sharedState.set(
-          migrate(
-            deserializedPersistValue.value,
-            deserializedPersistValue.version
-          )
-        );
-      }
+        if (deserializedPersistValue.version === version) {
+          sharedState.set(deserializedPersistValue.value);
+        } else if (deserializedPersistValue.version !== version && migrate) {
+          sharedState.set(
+            migrate(
+              deserializedPersistValue.value,
+              deserializedPersistValue.version
+            )
+          );
+        }
+      } catch {}
     }
 
     return {
