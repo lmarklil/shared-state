@@ -35,7 +35,9 @@ export function persist<T>(options: {
             )
           );
         }
-      } catch {}
+      } catch {
+        migrate && sharedState.set(migrate(persistValue, -1)); // 当persistValue不是JSON字符串时，调用migrate函数，版本标识为-1
+      }
     }
 
     return {
