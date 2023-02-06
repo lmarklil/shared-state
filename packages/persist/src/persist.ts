@@ -1,13 +1,13 @@
 import { SharedStateMiddleware } from "@shared-state/core";
-import { StorageValue, Storage } from "./types";
+import { StorageValue } from "./types";
 
 export function persist<T>(options: {
   key: string;
   storage: Storage;
   serialize?: (value: StorageValue<T>) => string;
   deserialize?: (value: string) => StorageValue<T>;
-  version?: number;
-  migrate?: (value: any, version?: number) => T;
+  version?: string | number;
+  migrate?: (value: any, version?: string | number) => T;
 }): SharedStateMiddleware<T> {
   const {
     key,
@@ -36,7 +36,7 @@ export function persist<T>(options: {
           );
         }
       } catch {
-        migrate && sharedState.set(migrate(persistValue, -1)); // 当persistValue不是JSON字符串时，调用migrate函数，版本标识为-1
+        migrate && sharedState.set(migrate(persistValue)); // 当persistValue不是JSON字符串时，调用migrate函数，版本标识为-1
       }
     }
 
