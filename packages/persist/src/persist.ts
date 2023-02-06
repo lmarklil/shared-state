@@ -7,7 +7,7 @@ export function persist<T>(options: {
   serialize?: (value: StorageValue<T>) => string;
   deserialize?: (value: string) => StorageValue<T>;
   version?: string | number;
-  migrate?: (value: any, version?: string | number) => T;
+  migrate?: (value: any, version?: string | number | false) => T;
 }): SharedStateMiddleware<T> {
   const {
     key,
@@ -36,7 +36,7 @@ export function persist<T>(options: {
           );
         }
       } catch {
-        migrate && sharedState.set(migrate(persistValue)); // 当persistValue不是JSON字符串时，调用migrate函数，版本标识为-1
+        migrate && sharedState.set(migrate(persistValue, false));
       }
     }
 
