@@ -1,6 +1,6 @@
-export type PersistValue = {
-  value: any;
-  version: string | number | undefined;
+export type PersistentValue<T = any> = {
+  value: T;
+  version?: string | number | undefined;
 };
 
 export type Storage<T> = {

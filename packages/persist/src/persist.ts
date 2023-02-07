@@ -1,44 +1,44 @@
 import { SharedStateMiddleware } from "@shared-state/core";
-import { PersistValue, Storage } from "./types";
+import { PersistentValue, Storage } from "./types";
 
 export function persist<T>(options: {
   key: string;
-  storage: Storage<PersistValue>;
+  storage: Storage<PersistentValue>;
   version?: string | number;
   migrate?: (value: any, version: string | number | undefined) => T;
-  onStartHydration?: () => void;
+  onHydrationBegin?: () => void;
   onHydrationFinish?: () => void;
-  onHydrationError?: (error: any) => void;
+  onHydrationFailed?: (error: any) => void;
 }): SharedStateMiddleware<T> {
   const {
     key,
     storage,
     version,
     migrate,
-    onStartHydration,
+    onHydrationBegin,
     onHydrationFinish,
-    onHydrationError,
+    onHydrationFailed,
   } = options;
 
   return (sharedState) => {
     let ignoreHydration = false;
 
-    onStartHydration?.();
+    onHydrationBegin?.();
 
     storage
       .get(key)
-      .then((persistValue) => {
-        if (ignoreHydration || !persistValue) return;
+      .then((persistentValue) => {
+        if (ignoreHydration || !persistentValue) return;
 
-        if (persistValue.version === version) {
-          sharedState.set(persistValue.value);
-        } else if (persistValue.version !== version && migrate) {
-          sharedState.set(migrate(persistValue.value, persistValue.version));
+        if (persistentValue.version === version) {
+          sharedState.set(persistentValue.value);
+        } else if (persistentValue.version !== version && migrate) {
+          sharedState.set(migrate(persistentValue.value, persistentValue.version));
         }
 
         onHydrationFinish?.();
       })
-      .catch((error: any) => onHydrationError?.(error));
+      .catch((error: any) => onHydrationFailed?.(error));
 
     return {
       ...sharedState,
