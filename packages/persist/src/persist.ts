@@ -1,57 +1,56 @@
 import { SharedStateMiddleware } from "@shared-state/core";
-import { StorageValue } from "./types";
+import { PersistValue, Storage } from "./types";
 
 export function persist<T>(options: {
   key: string;
-  storage: Storage;
-  serialize?: (value: StorageValue<T>) => string;
-  deserialize?: (value: string) => StorageValue<T>;
+  storage: Storage<PersistValue>;
   version?: string | number;
-  migrate?: (value: any, version?: string | number | false) => T;
+  migrate?: (value: any, version: string | number | undefined) => T;
+  onStartHydration?: () => void;
+  onHydrationFinish?: () => void;
+  onHydrationError?: (error: any) => void;
 }): SharedStateMiddleware<T> {
   const {
     key,
     storage,
     version,
     migrate,
-    serialize = JSON.stringify,
-    deserialize = JSON.parse,
+    onStartHydration,
+    onHydrationFinish,
+    onHydrationError,
   } = options;
 
   return (sharedState) => {
-    const persistValue = storage.getItem(key);
+    let ignoreHydration = false;
 
-    if (persistValue) {
-      try {
-        const deserializedPersistValue = deserialize(persistValue);
+    onStartHydration?.();
 
-        if (deserializedPersistValue.version === version) {
-          sharedState.set(deserializedPersistValue.value);
-        } else if (deserializedPersistValue.version !== version && migrate) {
-          sharedState.set(
-            migrate(
-              deserializedPersistValue.value,
-              deserializedPersistValue.version
-            )
-          );
+    storage
+      .get(key)
+      .then((persistValue) => {
+        if (ignoreHydration || !persistValue) return;
+
+        if (persistValue.version === version) {
+          sharedState.set(persistValue.value);
+        } else if (persistValue.version !== version && migrate) {
+          sharedState.set(migrate(persistValue.value, persistValue.version));
         }
-      } catch {
-        migrate && sharedState.set(migrate(persistValue, false));
-      }
-    }
+
+        onHydrationFinish?.();
+      })
+      .catch((error: any) => onHydrationError?.(error));
 
     return {
       ...sharedState,
       set: (...args) => {
+        ignoreHydration = true;
+
         sharedState.set(...args);
 
-        storage.setItem(
-          key,
-          serialize({
-            value: sharedState.get(),
-            version,
-          })
-        );
+        storage.set(key, {
+          value: sharedState.get(),
+          version,
+        });
       },
     };
   };
