@@ -1,12 +1,14 @@
-import { PersistentValue, Storage as AbstractStorage } from "./types";
+import { PersistentValue, PersistentStorage } from "./types";
 
-export function withConverter<T, SerializedValue = any>(options: {
-  storage: AbstractStorage<SerializedValue>;
-  migrate: (value: any) => T | undefined;
-  serialize: (value: T) => SerializedValue;
-  deserialize: (value: SerializedValue) => T;
-}): AbstractStorage<T> {
-  const { storage, migrate, serialize, deserialize } = options;
+export function withConverter<T, SerializedValue = any>(
+  storage: PersistentStorage<SerializedValue>,
+  options: {
+    migrate: (value: any) => T | undefined;
+    serialize: (value: T) => SerializedValue;
+    deserialize: (value: SerializedValue) => T;
+  }
+): PersistentStorage<T> {
+  const { migrate, serialize, deserialize } = options;
 
   return {
     get: async (key) => {
@@ -33,18 +35,22 @@ export function createWebPersistentStorage<T>(
     serialize?: (value: PersistentValue<T>) => string;
     deserialize?: (value: string) => PersistentValue<T>;
   }
-): AbstractStorage<PersistentValue<T>> {
-  return withConverter<PersistentValue<T>, string>({
-    storage: {
+): PersistentStorage<PersistentValue<T>> {
+  return withConverter<PersistentValue<T>, string>(
+    {
       get: async (key) => webStorage.getItem(key),
       set: async (key, value) => webStorage.setItem(key, value),
     },
-    serialize: options?.serialize || JSON.stringify,
-    deserialize: options?.deserialize || JSON.parse,
-    migrate: (value) => {
-      const migratedValue = options?.migrate?.(value);
+    {
+      serialize: options?.serialize || JSON.stringify,
+      deserialize: options?.deserialize || JSON.parse,
+      migrate: (value) => {
+        const migratedValue = options?.migrate?.(value);
 
-      return migratedValue !== undefined ? { value: migratedValue } : undefined;
-    },
-  });
+        return migratedValue !== undefined
+          ? { value: migratedValue }
+          : undefined;
+      },
+    }
+  );
 }

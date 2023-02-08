@@ -13,10 +13,6 @@ export type SharedState<T> = {
 
 export type ReadOnlySharedState<T> = Omit<SharedState<T>, "set">;
 
-export type SharedStateMiddleware<T> = (
-  sharedState: SharedState<T>
-) => SharedState<T>;
-
 export type SharedStateFamilyMemberKey = string;
 
 export type SharedStateFamily<T> = {
