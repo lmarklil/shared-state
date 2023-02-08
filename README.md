@@ -107,22 +107,20 @@ function logger(sharedState) {
 const counter = logger(createSharedState(0));
 ```
 
-#### Combination middleware with lodash flow function
+#### Custom `createSharedState` with middleware
 
 ```js
 import { createSharedState } from "@shared-state/core";
-import { logger, persist } from "@shared-state/middlewares";
-import { flow } from "lodash";
+import { persist, createWebPersistentStorage } from "@shared-state/persist";
 
-const key = "counter";
+function createPersistentSharedState(initialValue, options) {
+  return persist(createSharedState(initialValue), options);
+}
 
-const createPersistentSharedState = flow(
-  createSharedState,
-  logger(key),
-  persist({ key })
-);
-
-const counter = createPersistentSharedState(0);
+const counter = createPersistentSharedState(0, {
+  key: "counter",
+  storage: createWebPersistentStorage(localStorage),
+});
 ```
 
 ## API

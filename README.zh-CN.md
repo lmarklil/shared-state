@@ -109,24 +109,6 @@ function logger(sharedState) {
 const counter = logger(createSharedState(0));
 ```
 
-可以用 Lodash 的 flow 函数解决嵌套过深的问题
-
-```js
-import { createSharedState } from "@shared-state/core";
-import { logger, persist } from "@shared-state/middlewares";
-import { flow } from "lodash";
-
-const key = "counter";
-
-const createPersistentSharedState = flow(
-  createSharedState,
-  logger(key),
-  persist({ key })
-);
-
-const counter = createPersistentSharedState(0);
-```
-
 ## API
 
 TODO
