@@ -18,15 +18,15 @@ pnpm install @shared-state/core @shared-state/persist
 import { createSharedState } from "@shared-state/core";
 import { persist, createWebPersistentStorage } from "@shared-state/persist";
 
-const localStoragePersistentState = persist({
+const localStoragePersistentState = persist(createSharedState(0), {
   key: "localStorage",
   storage: createWebPersistentStorage(localStorage),
-})(createSharedState(0));
+});
 
-const sessionStoragePersistentState = persist({
+const sessionStoragePersistentState = persist(createSharedState(0), {
   key: "sessionStorage",
   storage: createWebPersistentStorage(sessionStorage),
-})(createSharedState(0));
+});
 ```
 
 ### 监听持久化数据加载状态
@@ -35,12 +35,10 @@ const sessionStoragePersistentState = persist({
 import { createSharedState } from "@shared-state/core";
 import { persist, createWebPersistentStorage } from "@shared-state/persist";
 
-const hydrationState = createSharedState(true);
-
-const persistentState = persist({
+const persistentState = persist(createSharedState(0), {
   key: "localStorage",
   storage: createWebPersistentStorage(localStorage),
-  onHydrationBegin: () => hydrationState.set(true),
-  onHydrationFinish: () => hydrationState.set(false),
-})(createSharedState(0));
+});
+
+persistentState.hydrationState.subscribe((hydrating) => console.log(hydrating));
 ```
