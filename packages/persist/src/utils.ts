@@ -25,6 +25,13 @@ export function withConverter<T, SerializedValue = any>(
       }
     },
     set: async (key, value) => storage.set(key, serialize(value)),
+    subscribe: (key, handler) =>
+      storage.subscribe(key, (nextValue, previousValue) =>
+        handler(
+          nextValue !== null ? deserialize(nextValue) : null,
+          previousValue !== null ? deserialize(previousValue) : null
+        )
+      ),
   };
 }
 
@@ -40,6 +47,22 @@ export function createWebPersistentStorage<T>(
     {
       get: async (key) => webStorage.getItem(key),
       set: async (key, value) => webStorage.setItem(key, value),
+      subscribe: (key, handler) => {
+        const eventHandler = (event: StorageEvent) => {
+          if (
+            !event.key ||
+            event.key !== key ||
+            event.newValue === event.oldValue
+          )
+            return;
+
+          handler(event.newValue, event.oldValue);
+        };
+
+        window.addEventListener("storage", eventHandler);
+
+        return () => window.removeEventListener("storage", eventHandler);
+      },
     },
     {
       serialize: options?.serialize || JSON.stringify,
