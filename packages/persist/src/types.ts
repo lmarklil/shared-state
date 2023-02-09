@@ -1,3 +1,5 @@
+import { SharedState } from "packages/core/src";
+
 export type PersistentValue<T = any> = {
   value: T;
   version?: string | number | undefined;
@@ -11,3 +13,18 @@ export type PersistentStorage<T> = {
     handler: (nextValue: T | null, previousValue: T | null) => void
   ) => () => void;
 };
+
+export type PersistedSharedState<T> = SharedState<T> & {
+  hydrate: () => void;
+  hydrationState: SharedState<boolean>;
+}
+
+export type PersistentOptions<T> = {
+  key: string;
+  storage: PersistentStorage<PersistentValue<T>>;
+  version?: string | number;
+  migrate?: (value: any, version: string | number | undefined) => T;
+  onHydrationStart?: () => void;
+  onHydrationEnd?: () => void;
+  onHydrationFailed?: (error: any) => void;
+}

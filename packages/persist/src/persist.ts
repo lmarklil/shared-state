@@ -1,21 +1,13 @@
 import { createSharedState, SharedState } from "@shared-state/core";
-import { PersistentValue, PersistentStorage } from "./types";
+import {
+  PersistedSharedState,
+  PersistentOptions,
+} from "./types";
 
 export function persist<T>(
   sharedState: SharedState<T>,
-  options: {
-    key: string;
-    storage: PersistentStorage<PersistentValue<T>>;
-    version?: string | number;
-    migrate?: (value: any, version: string | number | undefined) => T;
-    onHydrationStart?: () => void;
-    onHydrationEnd?: () => void;
-    onHydrationFailed?: (error: any) => void;
-  }
-): SharedState<T> & {
-  hydrate: () => void;
-  hydrationState: SharedState<boolean>;
-} {
+  options: PersistentOptions<T>
+): PersistedSharedState<T> {
   const {
     key,
     storage,
