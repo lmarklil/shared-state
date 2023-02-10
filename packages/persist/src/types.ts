@@ -1,4 +1,4 @@
-import { SharedState } from "packages/core/src";
+import { SharedState } from "@shared-state/core";
 
 export type PersistentValue<T = any> = {
   value: T;
@@ -17,7 +17,7 @@ export type PersistentStorage<T> = {
 export type PersistedSharedState<T> = SharedState<T> & {
   hydrate: () => void;
   hydrationState: SharedState<boolean>;
-}
+};
 
 export type PersistentOptions<T> = {
   key: string;
@@ -27,4 +27,4 @@ export type PersistentOptions<T> = {
   onHydrationStart?: () => void;
   onHydrationEnd?: () => void;
   onHydrationFailed?: (error: any) => void;
-}
+};
