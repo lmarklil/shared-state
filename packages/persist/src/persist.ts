@@ -2,6 +2,7 @@ import { createSharedState, SharedState } from "@shared-state/core";
 import {
   PersistedSharedState,
   PersistentOptions,
+  PersistentValue,
 } from "./types";
 
 export function persist<T>(
@@ -32,26 +33,33 @@ export function persist<T>(
       onHydrationEnd?.();
     };
 
-    storage
-      .get(key)
-      .then((persistentValue) => {
-        if (ignoreHydration || !persistentValue) {
-          finishHydration();
+    const getStorageResult = storage.get(key);
 
-          return;
-        }
-
-        if (persistentValue.version === version) {
-          sharedState.set(persistentValue.value);
-        } else if (persistentValue.version !== version && migrate) {
-          sharedState.set(
-            migrate(persistentValue.value, persistentValue.version)
-          );
-        }
-
+    const setSharedState = (persistentValue: PersistentValue<T> | null) => {
+      if (ignoreHydration || !persistentValue) {
         finishHydration();
-      })
-      .catch((error: any) => onHydrationFailed?.(error));
+
+        return;
+      }
+
+      if (persistentValue.version === version) {
+        sharedState.set(persistentValue.value);
+      } else if (persistentValue.version !== version && migrate) {
+        sharedState.set(
+          migrate(persistentValue.value, persistentValue.version)
+        );
+      }
+
+      finishHydration();
+    };
+
+    if (getStorageResult instanceof Promise) {
+      getStorageResult
+        .then((persistentValue) => setSharedState(persistentValue))
+        .catch((error: any) => onHydrationFailed?.(error));
+    } else {
+      setSharedState(getStorageResult);
+    }
   };
 
   hydrate();

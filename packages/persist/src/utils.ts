@@ -11,20 +11,28 @@ export function withConverter<T, SerializedValue = any>(
   const { migrate, serialize, deserialize } = options;
 
   return {
-    get: async (key) => {
-      const value = await storage.get(key);
+    get: (key) => {
+      const getStorageResult = storage.get(key);
 
-      if (value === null) return null;
+      const deserializeValue = (value: SerializedValue | null) => {
+        if (value === null) return null;
 
-      try {
-        return deserialize(value);
-      } catch {
-        const migratedValue = migrate?.(value);
+        try {
+          return deserialize(value);
+        } catch {
+          const migratedValue = migrate?.(value);
 
-        return migratedValue !== undefined ? migratedValue : null;
+          return migratedValue !== undefined ? migratedValue : null;
+        }
+      };
+
+      if (getStorageResult instanceof Promise) {
+        return getStorageResult.then((value) => deserializeValue(value));
+      } else {
+        return deserializeValue(getStorageResult);
       }
     },
-    set: async (key, value) => storage.set(key, serialize(value)),
+    set: (key, value) => storage.set(key, serialize(value)),
     subscribe: (key, handler) =>
       storage.subscribe(key, (nextValue, previousValue) =>
         handler(
@@ -45,8 +53,8 @@ export function createWebPersistentStorage<T>(
 ): PersistentStorage<PersistentValue<T>> {
   return withConverter<PersistentValue<T>, string>(
     {
-      get: async (key) => webStorage.getItem(key),
-      set: async (key, value) => webStorage.setItem(key, value),
+      get: (key) => webStorage.getItem(key),
+      set: (key, value) => webStorage.setItem(key, value),
       subscribe: (key, handler) => {
         const eventHandler = (event: StorageEvent) => {
           if (
