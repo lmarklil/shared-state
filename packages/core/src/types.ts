@@ -11,17 +11,10 @@ export type SharedState<T> = {
   destroy: () => void;
 };
 
-export type ReadOnlySharedState<T> = Omit<SharedState<T>, "set">;
-
-export type SharedStateFamilyMemberKey = string;
+export type SharedStateFamilyMemberKey = string | number | symbol;
 
 export type SharedStateFamily<T> = {
-  get: (key: SharedStateFamilyMemberKey) => T;
-  set: (key: SharedStateFamilyMemberKey, partial: Partial<T>) => void;
-  subscribe: (
-    key: SharedStateFamilyMemberKey,
-    handler: Subscriber<T>
-  ) => () => void;
+  get: (key: SharedStateFamilyMemberKey) => SharedState<T>;
   destroy: (key?: SharedStateFamilyMemberKey) => void;
 };
 

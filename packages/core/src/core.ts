@@ -43,7 +43,7 @@ export function createDerivedSharedState<T>(
   setValue?: () => void // TODO 重新设计
 ): SharedState<T> {
   const subscriberSet = new Set<Subscriber<T>>();
-  const dependenceMap = new Map();
+  const dependenceMap = new Map<SharedState<any>, () => void>();
 
   let value = getValue((sharedState) => {
     if (!dependenceMap.has(sharedState)) {
@@ -76,7 +76,7 @@ export function createDerivedSharedState<T>(
       return () => subscriberSet.delete(handler);
     },
     destroy: () => {
-      for (const unsubscribe of dependenceMap.values()) {
+      for (const [, unsubscribe] of dependenceMap) {
         unsubscribe();
       }
 
@@ -86,28 +86,24 @@ export function createDerivedSharedState<T>(
 }
 
 export function createSharedStateFamily<T>(
-  initialValue: T,
-  setup?: (
-    sharedState: SharedState<T>,
-    key: SharedStateFamilyMemberKey
-  ) => SharedState<T>
+  setup: (key: SharedStateFamilyMemberKey) => SharedState<T>
 ): SharedStateFamily<T> {
-  const sharedStateMap = new Map();
-
-  const getOrCreateSharedState = (key: SharedStateFamilyMemberKey) => {
-    if (!sharedStateMap.has(key)) {
-      const sharedState = createSharedState(initialValue);
-
-      sharedStateMap.set(key, setup?.(sharedState, key) || sharedState);
-    }
-
-    return sharedStateMap.get(key);
-  };
+  const sharedStateMap = new Map<SharedStateFamilyMemberKey, SharedState<T>>();
 
   return {
-    get: (key) => sharedStateMap.get(key)?.get() || initialValue,
-    set: (key, partial) => getOrCreateSharedState(key).set(partial),
-    subscribe: (key, handler) => getOrCreateSharedState(key).subscribe(handler),
+    get: (key) => {
+      const sharedState = sharedStateMap.get(key);
+
+      if (sharedState) {
+        return sharedState;
+      } else {
+        const sharedState = setup(key);
+
+        sharedStateMap.set(key, sharedState);
+
+        return sharedState;
+      }
+    },
     destroy: (key) => {
       const destroySharedState = (key: SharedStateFamilyMemberKey) => {
         if (!sharedStateMap.has(key)) return;
@@ -124,17 +120,5 @@ export function createSharedStateFamily<T>(
         }
       }
     },
-  };
-}
-
-export function selectSharedStateFamilyMember<T>(
-  sharedStateFamily: SharedStateFamily<T>,
-  key: SharedStateFamilyMemberKey
-): SharedState<T> {
-  return {
-    get: () => sharedStateFamily.get(key),
-    set: (partial) => sharedStateFamily.set(key, partial),
-    subscribe: (handler) => sharedStateFamily.subscribe(key, handler),
-    destroy: () => sharedStateFamily.destroy(key),
   };
 }

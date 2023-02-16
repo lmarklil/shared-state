@@ -1,11 +1,6 @@
-import { useMemo } from "react";
 import { useSyncExternalStore } from "use-sync-external-store/shim";
-import {
-  SharedState,
-  SharedStateFamily,
-  SharedStateFamilyMemberKey,
-  selectSharedStateFamilyMember,
-} from "@shared-state/core";
+import { SharedState, SharedStateFamily } from "@shared-state/core";
+import { useMemo } from "react";
 
 export function useSharedStateValue<T>(sharedState: SharedState<T>) {
   return useSyncExternalStore(sharedState.subscribe, sharedState.get);
@@ -17,14 +12,9 @@ export function useSharedState<T>(
   return [useSharedStateValue(sharedState), sharedState.set];
 }
 
-export function useSharedStateFamilyMember<T>(
-  sharedStateFamily: SharedStateFamily<T>,
-  key: SharedStateFamilyMemberKey
+export function useSharedStateFamilyMember<T, K>(
+  sharedStateFamily: SharedStateFamily<T, K>,
+  key: K
 ) {
-  const sharedState = useMemo(
-    () => selectSharedStateFamilyMember(sharedStateFamily, key),
-    [key, sharedStateFamily]
-  );
-
-  return useSharedState(sharedState);
+  return useMemo(() => sharedStateFamily.get(key), [sharedStateFamily, key]);
 }
