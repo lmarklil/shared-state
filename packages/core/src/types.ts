@@ -24,6 +24,11 @@ export type DerivedSharedStateValueGetter<T> = (
   ) => SharedStateValue
 ) => T;
 
+export type DerivedSharedStateValueSetter<T> = (
+  nextValue: T,
+  previousValue: T
+) => void;
+
 export type AsyncDerivedSharedState<T> = SharedState<T | undefined> & {
   hydrationState: SharedState<boolean>;
 };
