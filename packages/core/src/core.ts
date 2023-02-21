@@ -1,10 +1,11 @@
 import {
+  AsyncDerivedSharedState,
   DerivedSharedStateValueGetter,
-  NextStateGetter,
   SharedState,
   SharedStateFamily,
   SharedStateFamilyMemberKey,
   Subscriber,
+  Updater,
 } from "./types";
 
 export function createSharedState<T>(initialValue: T): SharedState<T> {
@@ -13,13 +14,13 @@ export function createSharedState<T>(initialValue: T): SharedState<T> {
 
   return {
     get: () => value,
-    set: (partial) => {
+    set: (valueOrUpdater) => {
       const previousValue = value;
 
       const nextValue =
-        typeof partial === "function"
-          ? (partial as NextStateGetter<T>)(previousValue)
-          : partial;
+        typeof valueOrUpdater === "function"
+          ? (valueOrUpdater as Updater<T>)(previousValue)
+          : valueOrUpdater;
 
       if (nextValue === previousValue) return;
 
@@ -40,48 +41,138 @@ export function createSharedState<T>(initialValue: T): SharedState<T> {
 
 export function createDerivedSharedState<T>(
   getValue: DerivedSharedStateValueGetter<T>,
-  setValue?: () => void // TODO 重新设计
+  setValue?: (value: T) => void
 ): SharedState<T> {
-  const subscriberSet = new Set<Subscriber<T>>();
-  const dependenceMap = new Map<SharedState<any>, () => void>();
+  let dependencyMap = new Map<SharedState<any>, () => void>();
 
-  let value = getValue((sharedState) => {
-    if (!dependenceMap.has(sharedState)) {
-      dependenceMap.set(
-        sharedState,
-        sharedState.subscribe(() => {
-          const previousValue = value;
-          const nextValue = getValue((sharedState) => sharedState.get());
+  const getDerivedSharedStateValue = () => {
+    // getValue函数里面可能会出现循环或条件判断，每次调用getValue都需要重新计算依赖
+    const nextDependencyMap = new Map<SharedState<any>, () => void>();
 
-          if (nextValue === previousValue) return;
+    const value = getValue((sharedState) => {
+      if (!nextDependencyMap.has(sharedState)) {
+        nextDependencyMap.set(
+          sharedState,
+          dependencyMap.get(sharedState) ||
+            sharedState.subscribe(() =>
+              internalSharedState.set(getDerivedSharedStateValue())
+            )
+        );
+      }
 
-          value = nextValue;
+      return sharedState.get();
+    });
 
-          subscriberSet.forEach((subscriber) =>
-            subscriber(nextValue, previousValue)
-          );
-        })
-      );
+    // 清理未使用的依赖
+    for (const [sharedState, unsubscribe] of dependencyMap) {
+      if (!nextDependencyMap.has(sharedState)) {
+        unsubscribe();
+      }
     }
 
-    return sharedState.get();
-  });
+    dependencyMap = nextDependencyMap;
+
+    return value;
+  };
+
+  const internalSharedState = createSharedState(getDerivedSharedStateValue());
 
   return {
-    get: () => value,
-    set: () => setValue?.(),
-    subscribe: (handler) => {
-      subscriberSet.add(handler);
+    ...internalSharedState,
+    set: (valueOrUpdater) => {
+      if (setValue) {
+        const previousValue = internalSharedState.get();
 
-      return () => subscriberSet.delete(handler);
+        const nextValue =
+          typeof valueOrUpdater === "function"
+            ? (valueOrUpdater as Updater<T>)(previousValue)
+            : valueOrUpdater;
+
+        setValue(nextValue);
+      }
     },
     destroy: () => {
-      for (const [, unsubscribe] of dependenceMap) {
+      for (const [, unsubscribe] of dependencyMap) {
         unsubscribe();
       }
 
-      subscriberSet.clear();
+      internalSharedState.destroy();
     },
+  };
+}
+
+export function createAsyncDerivedSharedState<T>(
+  getValue: DerivedSharedStateValueGetter<Promise<T>>,
+  setValue?: (value: T | undefined) => void
+): AsyncDerivedSharedState<T> {
+  const internalSharedState = createSharedState<T | undefined>(undefined);
+
+  const hydrationState = createSharedState(false);
+
+  let dependencyMap = new Map<SharedState<any>, () => void>();
+
+  let currentTaskId = 0;
+
+  const hydrate = () => {
+    const taskId = ++currentTaskId;
+
+    hydrationState.set(true);
+
+    // getValue函数里面可能会出现循环或条件判断，每次调用getValue都需要重新计算依赖
+    const nextDependencyMap = new Map<SharedState<any>, () => void>();
+
+    getValue((sharedState) => {
+      if (!nextDependencyMap.has(sharedState)) {
+        nextDependencyMap.set(
+          sharedState,
+          dependencyMap.get(sharedState) ||
+            sharedState.subscribe(() => hydrate())
+        );
+      }
+
+      return sharedState.get();
+    }).then((value) => {
+      if (currentTaskId !== taskId) return;
+
+      internalSharedState.set(value);
+
+      hydrationState.set(false);
+    });
+
+    // 清理未使用的依赖
+    for (const [sharedState, unsubscribe] of dependencyMap) {
+      if (!nextDependencyMap.has(sharedState)) {
+        unsubscribe();
+      }
+    }
+
+    dependencyMap = nextDependencyMap;
+  };
+
+  hydrate()
+
+  return {
+    ...internalSharedState,
+    set: (valueOrUpdater) => {
+      if (setValue) {
+        const previousValue = internalSharedState.get();
+
+        const nextValue =
+          typeof valueOrUpdater === "function"
+            ? (valueOrUpdater as Updater<T | undefined>)(previousValue)
+            : valueOrUpdater;
+
+        setValue(nextValue);
+      }
+    },
+    destroy: () => {
+      for (const [, unsubscribe] of dependencyMap) {
+        unsubscribe();
+      }
+
+      internalSharedState.destroy();
+    },
+    hydrationState,
   };
 }
 
