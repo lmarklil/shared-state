@@ -6,7 +6,7 @@
     "type": "git",
     "url": "git@github.com:lmarklil/shared-state.git"
   },
-  "version": "0.0.14",
+  "version": "0.0.15",
   "description": "",
   "keywords": [
     "shared-state"
@@ -19,7 +19,7 @@
   "files": [
     "dist"
   ],
-  "dependencies": {
+  "peerDependencies": {
     "@shared-state/core": "workspace:"
   }
 }

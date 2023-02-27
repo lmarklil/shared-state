@@ -43,8 +43,8 @@ function createBuildConfig(packageName, external) {
  */
 export default [
   createBuildConfig("core"),
-  createBuildConfig("react", ["react"]),
-  createBuildConfig("vue", ["vue"]),
-  createBuildConfig("persist"),
-  createBuildConfig("logger"),
+  createBuildConfig("react", ["@shared-state/core", "react"]),
+  createBuildConfig("vue", ["@shared-state/core", "vue"]),
+  createBuildConfig("persist", ["@shared-state/core"]),
+  createBuildConfig("logger", ["@shared-state/core"]),
 ];
