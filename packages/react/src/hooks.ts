@@ -1,6 +1,5 @@
 import { useSyncExternalStore } from "use-sync-external-store/shim";
-import { SharedState } from "@shared-state/core";
-import { DerivedSharedState } from "packages/core/src";
+import { DerivedSharedState, SharedState } from "@shared-state/core";
 
 export function useSharedStateValue<T>(
   sharedState: SharedState<T> | DerivedSharedState<T>
