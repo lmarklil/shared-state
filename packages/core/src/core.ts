@@ -1,7 +1,7 @@
 import {
   AsyncDerivedSharedState,
+  DerivedSharedState,
   DerivedSharedStateValueGetter,
-  DerivedSharedStateValueSetter,
   SharedState,
   SharedStateFamily,
   SharedStateFamilyMemberKey,
@@ -31,6 +31,7 @@ export function createSharedState<T>(initialValue: T): SharedState<T> {
         subscriber(nextValue, previousValue)
       );
     },
+    reset: () => (value = initialValue),
     subscribe: (handler) => {
       subscriberSet.add(handler);
 
@@ -41,13 +42,11 @@ export function createSharedState<T>(initialValue: T): SharedState<T> {
 }
 
 export function createDerivedSharedState<T>(
-  getValue: DerivedSharedStateValueGetter<T>,
-  setValue?: DerivedSharedStateValueSetter<T>
-): SharedState<T> {
+  getValue: DerivedSharedStateValueGetter<T>
+): DerivedSharedState<T> {
   let dependencyMap = new Map<SharedState<any>, () => void>();
 
   const getDerivedSharedStateValue = () => {
-    // getValue函数里面可能会出现循环或条件判断导致一些状态依赖无法收集到，所以每次调用getValue时都需要重新计算依赖
     const nextDependencyMap = new Map<SharedState<any>, () => void>();
 
     const value = getValue((sharedState) => {
@@ -64,7 +63,6 @@ export function createDerivedSharedState<T>(
       return sharedState.get();
     });
 
-    // 清理未使用的依赖
     for (const [sharedState, unsubscribe] of dependencyMap) {
       if (!nextDependencyMap.has(sharedState)) {
         unsubscribe();
@@ -80,18 +78,6 @@ export function createDerivedSharedState<T>(
 
   return {
     ...internalSharedState,
-    set: (valueOrUpdater) => {
-      if (setValue) {
-        const previousValue = internalSharedState.get();
-
-        const nextValue =
-          typeof valueOrUpdater === "function"
-            ? (valueOrUpdater as Updater<T>)(previousValue)
-            : valueOrUpdater;
-
-        setValue(nextValue, previousValue);
-      }
-    },
     destroy: () => {
       for (const [, unsubscribe] of dependencyMap) {
         unsubscribe();
@@ -103,8 +89,7 @@ export function createDerivedSharedState<T>(
 }
 
 export function createAsyncDerivedSharedState<T>(
-  getValue: DerivedSharedStateValueGetter<Promise<T>>,
-  setValue?: DerivedSharedStateValueSetter<T | undefined>
+  getValue: DerivedSharedStateValueGetter<Promise<T>>
 ): AsyncDerivedSharedState<T> {
   const internalSharedState = createSharedState<T | undefined>(undefined);
 
@@ -119,7 +104,6 @@ export function createAsyncDerivedSharedState<T>(
 
     hydrationState.set(true);
 
-    // getValue函数里面可能会出现循环或条件判断，每次调用getValue都需要重新计算依赖
     const nextDependencyMap = new Map<SharedState<any>, () => void>();
 
     getValue((sharedState) => {
@@ -140,7 +124,6 @@ export function createAsyncDerivedSharedState<T>(
       hydrationState.set(false);
     });
 
-    // 清理未使用的依赖
     for (const [sharedState, unsubscribe] of dependencyMap) {
       if (!nextDependencyMap.has(sharedState)) {
         unsubscribe();
@@ -154,18 +137,6 @@ export function createAsyncDerivedSharedState<T>(
 
   return {
     ...internalSharedState,
-    set: (valueOrUpdater) => {
-      if (setValue) {
-        const previousValue = internalSharedState.get();
-
-        const nextValue =
-          typeof valueOrUpdater === "function"
-            ? (valueOrUpdater as Updater<T | undefined>)(previousValue)
-            : valueOrUpdater;
-
-        setValue(nextValue, previousValue);
-      }
-    },
     destroy: () => {
       for (const [, unsubscribe] of dependencyMap) {
         unsubscribe();

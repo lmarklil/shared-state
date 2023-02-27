@@ -8,6 +8,7 @@ export type PersistentValue<T = any> = {
 export type PersistentStorage<T> = {
   get: (key: string) => (T | null) | Promise<T | null>;
   set: (key: string, value: T) => void | Promise<void>;
+  remove: (key: string) => void;
   subscribe: (
     key: string,
     handler: (nextValue: T | null, previousValue: T | null) => void

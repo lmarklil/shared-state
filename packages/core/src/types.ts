@@ -4,18 +4,12 @@ export type Updater<T> = (previousValue: T) => T;
 
 export type ValueOrUpdater<T> = T | Updater<T>;
 
-export type SharedState<T> = {
+export type SharedState<T = unknown> = {
   get: () => T;
   set: (valueOrUpdater: ValueOrUpdater<T>) => void;
+  reset: () => void;
   subscribe: (handler: Subscriber<T>) => () => void;
   destroy: () => void;
-};
-
-export type SharedStateFamilyMemberKey = string | number | symbol;
-
-export type SharedStateFamily<T> = {
-  get: (key: SharedStateFamilyMemberKey) => SharedState<T>;
-  destroy: (key?: SharedStateFamilyMemberKey) => void;
 };
 
 export type DerivedSharedStateValueGetter<T> = (
@@ -24,11 +18,15 @@ export type DerivedSharedStateValueGetter<T> = (
   ) => SharedStateValue
 ) => T;
 
-export type DerivedSharedStateValueSetter<T> = (
-  nextValue: T,
-  previousValue: T
-) => void;
+export type DerivedSharedState<T> = Omit<SharedState<T>, "set" | "reset">;
 
-export type AsyncDerivedSharedState<T> = SharedState<T | undefined> & {
+export type AsyncDerivedSharedState<T> = DerivedSharedState<T | undefined> & {
   hydrationState: SharedState<boolean>;
+};
+
+export type SharedStateFamilyMemberKey = string | number;
+
+export type SharedStateFamily<T> = {
+  get: (key: SharedStateFamilyMemberKey) => SharedState<T>;
+  destroy: (key?: SharedStateFamilyMemberKey) => void;
 };

@@ -3,31 +3,29 @@ import { PersistentValue, PersistentStorage } from "./types";
 export function withConverter<T, SerializedValue = any>(
   storage: PersistentStorage<SerializedValue>,
   options: {
-    migrate: (value: any) => T | undefined;
     serialize: (value: T) => SerializedValue;
     deserialize: (value: SerializedValue) => T;
   }
 ): PersistentStorage<T> {
-  const { migrate, serialize, deserialize } = options;
+  const { serialize, deserialize } = options;
+
+  const deserializeValue = (value: SerializedValue | null) => {
+    if (value === null) return null;
+
+    try {
+      return deserialize(value);
+    } catch {
+      return null;
+    }
+  };
 
   return {
+    ...storage,
     get: (key) => {
       const getStorageResult = storage.get(key);
 
-      const deserializeValue = (value: SerializedValue | null) => {
-        if (value === null) return null;
-
-        try {
-          return deserialize(value);
-        } catch {
-          const migratedValue = migrate?.(value);
-
-          return migratedValue !== undefined ? migratedValue : null;
-        }
-      };
-
       if (getStorageResult instanceof Promise) {
-        return getStorageResult.then((value) => deserializeValue(value));
+        return getStorageResult.then(deserializeValue);
       } else {
         return deserializeValue(getStorageResult);
       }
@@ -36,8 +34,8 @@ export function withConverter<T, SerializedValue = any>(
     subscribe: (key, handler) =>
       storage.subscribe(key, (nextValue, previousValue) =>
         handler(
-          nextValue !== null ? deserialize(nextValue) : null,
-          previousValue !== null ? deserialize(previousValue) : null
+          nextValue !== null ? deserializeValue(nextValue) : null,
+          previousValue !== null ? deserializeValue(previousValue) : null
         )
       ),
   };
@@ -55,6 +53,7 @@ export function createWebPersistentStorage<T>(
     {
       get: (key) => webStorage.getItem(key),
       set: (key, value) => webStorage.setItem(key, value),
+      remove: (key) => webStorage.removeItem(key),
       subscribe: (key, handler) => {
         const eventHandler = (event: StorageEvent) => {
           if (
@@ -75,13 +74,6 @@ export function createWebPersistentStorage<T>(
     {
       serialize: options?.serialize || JSON.stringify,
       deserialize: options?.deserialize || JSON.parse,
-      migrate: (value) => {
-        const migratedValue = options?.migrate?.(value);
-
-        return migratedValue !== undefined
-          ? { value: migratedValue }
-          : undefined;
-      },
     }
   );
 }
