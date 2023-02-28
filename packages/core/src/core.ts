@@ -1,9 +1,12 @@
 import {
   AsyncDerivedSharedState,
-  DerivedSharedState,
+  AsyncDerivedSharedStateValueGetter,
+  AsyncDerivedSharedStateValueSetter,
   DerivedSharedStateValueGetter,
+  DerivedSharedStateValueSetter,
   SharedState,
   SharedStateFamily,
+  SharedStateFamilyMemberCreater,
   SharedStateFamilyMemberKey,
   Subscriber,
   Updater,
@@ -42,8 +45,9 @@ export function createSharedState<T>(initialValue: T): SharedState<T> {
 }
 
 export function createDerivedSharedState<T>(
-  getValue: DerivedSharedStateValueGetter<T>
-): DerivedSharedState<T> {
+  getValue: DerivedSharedStateValueGetter<T>,
+  setValue?: DerivedSharedStateValueSetter<T>
+): SharedState<T> {
   let dependencyMap = new Map<SharedState<any>, () => void>();
 
   const getDerivedSharedStateValue = () => {
@@ -77,7 +81,21 @@ export function createDerivedSharedState<T>(
   const internalSharedState = createSharedState(getDerivedSharedStateValue());
 
   return {
-    ...internalSharedState,
+    get: internalSharedState.get,
+    set: (valueOrUpdater) => {
+      if (setValue) {
+        const previousValue = internalSharedState.get();
+
+        const nextValue =
+          typeof valueOrUpdater === "function"
+            ? (valueOrUpdater as Updater<T>)(previousValue)
+            : valueOrUpdater;
+
+        setValue(nextValue, previousValue);
+      }
+    },
+    reset: () => internalSharedState.set(getDerivedSharedStateValue()),
+    subscribe: internalSharedState.subscribe,
     destroy: () => {
       for (const [, unsubscribe] of dependencyMap) {
         unsubscribe();
@@ -89,7 +107,8 @@ export function createDerivedSharedState<T>(
 }
 
 export function createAsyncDerivedSharedState<T>(
-  getValue: DerivedSharedStateValueGetter<Promise<T>>
+  getValue: AsyncDerivedSharedStateValueGetter<T>,
+  setValue?: AsyncDerivedSharedStateValueSetter<T>
 ): AsyncDerivedSharedState<T> {
   const internalSharedState = createSharedState<T | undefined>(undefined);
 
@@ -136,7 +155,21 @@ export function createAsyncDerivedSharedState<T>(
   hydrate();
 
   return {
-    ...internalSharedState,
+    get: internalSharedState.get,
+    set: (valueOrUpdater) => {
+      if (setValue) {
+        const previousValue = internalSharedState.get();
+
+        const nextValue =
+          typeof valueOrUpdater === "function"
+            ? (valueOrUpdater as Updater<T | undefined>)(previousValue)
+            : valueOrUpdater;
+
+        setValue(nextValue, previousValue);
+      }
+    },
+    reset: hydrate,
+    subscribe: internalSharedState.subscribe,
     destroy: () => {
       for (const [, unsubscribe] of dependencyMap) {
         unsubscribe();
@@ -149,36 +182,38 @@ export function createAsyncDerivedSharedState<T>(
 }
 
 export function createSharedStateFamily<T>(
-  setup: (key: SharedStateFamilyMemberKey) => SharedState<T>
+  create: SharedStateFamilyMemberCreater<T>
 ): SharedStateFamily<T> {
-  const sharedStateMap = new Map<SharedStateFamilyMemberKey, SharedState<T>>();
+  const memberMap = new Map<SharedStateFamilyMemberKey, SharedState<T>>();
 
   return {
     get: (key) => {
-      const sharedState = sharedStateMap.get(key);
+      const member = memberMap.get(key);
 
-      if (sharedState) {
-        return sharedState;
+      if (member) {
+        return member;
       } else {
-        const sharedState = setup(key);
+        const member = create(key);
 
-        sharedStateMap.set(key, sharedState);
+        memberMap.set(key, member);
 
-        return sharedState;
+        return member;
       }
     },
     destroy: (key) => {
       const destroySharedState = (key: SharedStateFamilyMemberKey) => {
-        if (!sharedStateMap.has(key)) return;
+        const member = memberMap.get(key);
 
-        sharedStateMap.get(key)?.destroy();
-        sharedStateMap.delete(key);
+        if (member) {
+          member.destroy();
+          memberMap.delete(key);
+        }
       };
 
       if (key) {
         destroySharedState(key);
       } else {
-        for (const [key] of sharedStateMap) {
+        for (const [key] of memberMap) {
           destroySharedState(key);
         }
       }

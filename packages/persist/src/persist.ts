@@ -71,7 +71,8 @@ export function persist<T>(
   });
 
   return {
-    ...sharedState,
+    get: sharedState.get,
+    subscribe: sharedState.subscribe,
     set: (valueOrUpdater) => {
       ignoreHydration = true;
 
