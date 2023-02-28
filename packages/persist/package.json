@@ -6,7 +6,7 @@
     "type": "git",
     "url": "git@github.com:lmarklil/shared-state.git"
   },
-  "version": "0.0.16",
+  "version": "0.0.17",
   "description": "",
   "keywords": [
     "shared-state"
