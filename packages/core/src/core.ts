@@ -26,7 +26,7 @@ export function createSharedState<T>(initialValue: T): SharedState<T> {
           ? (valueOrUpdater as Updater<T>)(previousValue)
           : valueOrUpdater;
 
-      if (nextValue === previousValue) return;
+      if (Object.is(nextValue, previousValue)) return;
 
       value = nextValue;
 
@@ -40,69 +40,92 @@ export function createSharedState<T>(initialValue: T): SharedState<T> {
 
       return () => subscriberSet.delete(handler);
     },
+    unsubscribe: (handler) => subscriberSet.delete(handler),
     destroy: () => subscriberSet.clear(),
   };
 }
 
 export function createDerivedSharedState<T>(
-  getValue: DerivedSharedStateValueGetter<T>,
-  setValue?: DerivedSharedStateValueSetter<T>
+  valueGetter: DerivedSharedStateValueGetter<T>,
+  valueSetter?: DerivedSharedStateValueSetter<T>
 ): SharedState<T> {
-  let dependencyMap = new Map<SharedState<any>, () => void>();
+  let value: T;
 
-  const getDerivedSharedStateValue = () => {
-    const nextDependencyMap = new Map<SharedState<any>, () => void>();
+  let dependenceSet = new Set<SharedState<any>>();
 
-    const value = getValue((sharedState) => {
-      if (!nextDependencyMap.has(sharedState)) {
-        nextDependencyMap.set(
-          sharedState,
-          dependencyMap.get(sharedState) ||
-            sharedState.subscribe(() =>
-              internalSharedState.set(getDerivedSharedStateValue())
-            )
-        );
-      }
+  const subscriberSet = new Set<Subscriber<T>>();
+
+  const isTrackingDependencies = () => subscriberSet.size > 0;
+
+  const dependenceSubscrptionHandler = () =>
+    subscriberSet.forEach((handler) => handler(getValue(), value));
+
+  const getValue = () => {
+    const nextDependencySet = new Set<SharedState<any>>();
+
+    const value = valueGetter((sharedState) => {
+      isTrackingDependencies() &&
+        sharedState.subscribe(dependenceSubscrptionHandler);
+
+      dependenceSet.add(sharedState);
 
       return sharedState.get();
     });
 
-    for (const [sharedState, unsubscribe] of dependencyMap) {
-      if (!nextDependencyMap.has(sharedState)) {
-        unsubscribe();
+    // 取消订阅不再使用的依赖
+    dependenceSet.forEach((sharedState) => {
+      if (!nextDependencySet.has(sharedState) && isTrackingDependencies()) {
+        sharedState.unsubscribe(dependenceSubscrptionHandler);
       }
-    }
+    });
 
-    dependencyMap = nextDependencyMap;
+    dependenceSet = nextDependencySet;
 
     return value;
   };
 
-  const internalSharedState = createSharedState(getDerivedSharedStateValue());
+  const unsubscribe = (handler: Subscriber<T>) => {
+    subscriberSet.delete(handler);
+
+    if (subscriberSet.size === 0) {
+      dependenceSet.forEach((sharedState) => sharedState.unsubscribe(handler));
+    }
+  };
+
+  value = getValue();
 
   return {
-    get: internalSharedState.get,
+    get: () => {
+      value = getValue();
+
+      return value;
+    },
     set: (valueOrUpdater) => {
-      if (setValue) {
-        const previousValue = internalSharedState.get();
+      if (valueSetter) {
+        const previousValue = value;
 
         const nextValue =
           typeof valueOrUpdater === "function"
             ? (valueOrUpdater as Updater<T>)(previousValue)
             : valueOrUpdater;
 
-        setValue(nextValue, previousValue);
+        valueSetter(nextValue, previousValue);
       }
     },
-    reset: () => internalSharedState.set(getDerivedSharedStateValue()),
-    subscribe: internalSharedState.subscribe,
-    destroy: () => {
-      for (const [, unsubscribe] of dependencyMap) {
-        unsubscribe();
+    reset: () => (value = getValue()),
+    subscribe: (handler) => {
+      if (subscriberSet.size === 0) {
+        dependenceSet.forEach((sharedState) =>
+          sharedState.subscribe(dependenceSubscrptionHandler)
+        );
       }
 
-      internalSharedState.destroy();
+      subscriberSet.add(handler);
+
+      return () => unsubscribe(handler);
     },
+    unsubscribe,
+    destroy: () => {},
   };
 }
 
@@ -170,6 +193,7 @@ export function createAsyncDerivedSharedState<T>(
     },
     reset: hydrate,
     subscribe: internalSharedState.subscribe,
+    unsubscribe: internalSharedState.unsubscribe,
     destroy: () => {
       for (const [, unsubscribe] of dependencyMap) {
         unsubscribe();

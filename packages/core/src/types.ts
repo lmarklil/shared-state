@@ -9,6 +9,7 @@ export type SharedState<T> = {
   set: (valueOrUpdater: ValueOrUpdater<T>) => void;
   reset: () => void;
   subscribe: (handler: Subscriber<T>) => () => void;
+  unsubscribe: (handler: Subscriber<T>) => void;
   destroy: () => void;
 };
 
