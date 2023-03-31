@@ -1,8 +1,4 @@
-import {
-  createAsyncDerivedSharedState,
-  createDerivedSharedState,
-  createSharedState,
-} from "../src";
+import { createDerivedSharedState, createSharedState } from "../src";
 
 test("SharedState set and get", () => {
   const count = createSharedState(0);
@@ -38,26 +34,8 @@ test("ConditionalDerivedSharedState", () => {
   count.set(200);
 
   expect(result.get()).toBe("big");
-});
 
-async function delay(time: number) {
-  return new Promise<void>((resolve) => setTimeout(() => resolve(), time));
-}
+  bigMessage.set("big message");
 
-test("AsyncDerivedSharedState", async () => {
-  const count = createSharedState(0);
-
-  const doubleCount = createAsyncDerivedSharedState(async (get) => {
-    await delay(1000);
-
-    return get(count) * 2;
-  });
-
-  count.set((count) => count + 1);
-
-  expect(doubleCount.get()).toBe(undefined);
-
-  await delay(2000);
-
-  expect(doubleCount.get()).toBe(2);
+  expect(result.get()).toBe("big message");
 });

@@ -9,8 +9,6 @@ export type SharedState<T> = {
   set: (valueOrUpdater: ValueOrUpdater<T>) => void;
   reset: () => void;
   subscribe: (handler: Subscriber<T>) => () => void;
-  unsubscribe: (handler: Subscriber<T>) => void;
-  destroy: () => void;
 };
 
 export type DerivedSharedStateValueGetter<T> = (
@@ -33,14 +31,3 @@ export type AsyncDerivedSharedStateValueSetter<T> =
 export type AsyncDerivedSharedState<T> = SharedState<T | undefined> & {
   hydrationState: SharedState<boolean>;
 };
-
-export type SharedStateFamilyMemberKey = string | number;
-
-export type SharedStateFamily<T> = {
-  get: (key: SharedStateFamilyMemberKey) => SharedState<T>;
-  destroy: (key?: SharedStateFamilyMemberKey) => void;
-};
-
-export type SharedStateFamilyMemberCreater<T> = (
-  key: SharedStateFamilyMemberKey
-) => SharedState<T>;
