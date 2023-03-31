@@ -35,6 +35,7 @@ export function createSharedState<T>(initialValue: T): SharedState<T> {
 
       return () => subscriberSet.delete(handler);
     },
+    hasSubscriber: () => subscriberSet.size > 0,
   };
 }
 
@@ -127,5 +128,6 @@ export function createDerivedSharedState<T>(
         }
       };
     },
+    hasSubscriber: () => subscriberSet.size > 0,
   };
 }
