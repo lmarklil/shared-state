@@ -39,3 +39,13 @@ test("ConditionalDerivedSharedState", () => {
 
   expect(result.get()).toBe("big message");
 });
+
+test("DerivdSharedStateSubscription", () => {
+  const count = createSharedState(0);
+
+  const doubleCount = createDerivedSharedState((get) => get(count) * 2);
+
+  doubleCount.subscribe((value) => expect(value).toBe(2));
+
+  count.set((count) => count + 1);
+});

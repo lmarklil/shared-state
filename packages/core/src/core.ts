@@ -35,7 +35,6 @@ export function createSharedState<T>(initialValue: T): SharedState<T> {
 
       return () => subscriberSet.delete(handler);
     },
-    hasSubscriber: () => subscriberSet.size > 0,
   };
 }
 
@@ -43,30 +42,20 @@ export function createDerivedSharedState<T>(
   valueGetter: DerivedSharedStateValueGetter<T>,
   valueSetter?: DerivedSharedStateValueSetter<T>
 ): SharedState<T> {
-  let value = valueGetter((sharedState) => sharedState.get());
-
   let dependencyMap = new Map<SharedState<any>, () => void>();
 
-  const subscriberSet = new Set<Subscriber<T>>();
-
-  const notify = () => {
+  const update = () => {
     const nextDependencyMap = new Map<SharedState<any>, () => void>();
-
-    const previousValue = value;
 
     const nextValue = valueGetter((sharedState) => {
       // 订阅新增依赖
-      if (nextDependencyMap.has(sharedState)) {
-        nextDependencyMap.set(
-          sharedState,
-          dependencyMap.get(sharedState) || sharedState.subscribe(notify)
-        );
-      }
+      nextDependencyMap.set(
+        sharedState,
+        dependencyMap.get(sharedState) || sharedState.subscribe(update)
+      );
 
       return sharedState.get();
     });
-
-    value = nextValue;
 
     // 取消订阅不再使用的依赖
     for (const [sharedState, unsubscribe] of dependencyMap) {
@@ -77,22 +66,22 @@ export function createDerivedSharedState<T>(
 
     dependencyMap = nextDependencyMap;
 
-    if (Object.is(nextValue, previousValue)) return;
-
-    subscriberSet.forEach((handler) => handler(nextValue, previousValue));
+    internalSharedState.set(nextValue);
   };
 
+  const internalSharedState = createSharedState(
+    valueGetter((sharedState) => {
+      dependencyMap.set(sharedState, sharedState.subscribe(update));
+
+      return sharedState.get();
+    })
+  );
+
   return {
-    get: () => {
-      const nextValue = valueGetter((sharedState) => sharedState.get());
-
-      value = nextValue;
-
-      return nextValue;
-    },
+    get: internalSharedState.get,
     set: (valueOrUpdater) => {
       if (valueSetter) {
-        const previousValue = value;
+        const previousValue = internalSharedState.get();
 
         const nextValue =
           typeof valueOrUpdater === "function"
@@ -104,30 +93,7 @@ export function createDerivedSharedState<T>(
         valueSetter(nextValue, previousValue);
       }
     },
-    reset: notify,
-    subscribe: (handler) => {
-      if (subscriberSet.size === 0) {
-        valueGetter((sharedState) => {
-          dependencyMap.set(sharedState, sharedState.subscribe(notify));
-
-          return sharedState.get();
-        });
-      }
-
-      subscriberSet.add(handler);
-
-      return () => {
-        subscriberSet.delete(handler);
-
-        if (subscriberSet.size === 0) {
-          for (const [sharedState, unsubscribe] of dependencyMap) {
-            unsubscribe();
-
-            dependencyMap.delete(sharedState);
-          }
-        }
-      };
-    },
-    hasSubscriber: () => subscriberSet.size > 0,
+    reset: update,
+    subscribe: internalSharedState.subscribe,
   };
 }

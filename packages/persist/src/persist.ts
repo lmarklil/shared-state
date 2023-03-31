@@ -60,7 +60,15 @@ export function persist<T>(
 
   hydrate();
 
-  let unsubscribeStorage: () => void;
+  storage.subscribe?.(key, (persistentValue) => {
+    ignoreHydration = true;
+
+    if (persistentValue !== null) {
+      setSharedStateWithPersistentValue(persistentValue);
+    } else {
+      sharedState.reset();
+    }
+  });
 
   return {
     get: sharedState.get,
@@ -74,30 +82,7 @@ export function persist<T>(
         version,
       });
     },
-    subscribe: (handler) => {
-      if (!sharedState.hasSubscriber()) {
-        unsubscribeStorage = storage.subscribe?.(key, (persistentValue) => {
-          ignoreHydration = true;
-
-          if (persistentValue !== null) {
-            setSharedStateWithPersistentValue(persistentValue);
-          } else {
-            sharedState.reset();
-          }
-        });
-      }
-
-      let unsubscribeSharedState = sharedState.subscribe(handler);
-
-      return () => {
-        unsubscribeSharedState();
-
-        if (!sharedState.hasSubscriber()) {
-          unsubscribeStorage?.();
-        }
-      };
-    },
-    hasSubscriber: sharedState.hasSubscriber,
+    subscribe: sharedState.subscribe,
     reset: () => {
       ignoreHydration = true;
 
