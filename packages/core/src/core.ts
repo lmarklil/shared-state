@@ -29,12 +29,8 @@ export function createSharedState<T>(initialValue: T): SharedState<T> {
   return {
     get: () => value,
     set,
-    reset: () => set(initialValue),
-    subscribe: (handler) => {
-      subscriberSet.add(handler);
-
-      return () => subscriberSet.delete(handler);
-    },
+    subscribe: (handler) => subscriberSet.add(handler),
+    unsubscribe: (handler) => subscriberSet.delete(handler),
   };
 }
 
@@ -42,40 +38,25 @@ export function createDerivedSharedState<T>(
   valueGetter: DerivedSharedStateValueGetter<T>,
   valueSetter?: DerivedSharedStateValueSetter<T>
 ): SharedState<T> {
-  let dependencyMap = new Map<SharedState<any>, () => void>();
+  const dependencySet = new Set<SharedState<any>>();
 
-  const update = () => {
-    const nextDependencyMap = new Map<SharedState<any>, () => void>();
+  const getValueAndSubscribeState = () =>
+    valueGetter((sharedState) => {
+      sharedState.subscribe(update);
 
-    const nextValue = valueGetter((sharedState) => {
-      // 订阅新增依赖
-      nextDependencyMap.set(
-        sharedState,
-        dependencyMap.get(sharedState) || sharedState.subscribe(update)
-      );
+      dependencySet.add(sharedState);
 
       return sharedState.get();
     });
 
-    // 取消订阅不再使用的依赖
-    for (const [sharedState, unsubscribe] of dependencyMap) {
-      if (!nextDependencyMap.has(sharedState)) {
-        unsubscribe();
-      }
-    }
+  const update = () => {
+    dependencySet.forEach((sharedState) => sharedState.unsubscribe(update));
+    dependencySet.clear();
 
-    dependencyMap = nextDependencyMap;
-
-    internalSharedState.set(nextValue);
+    internalSharedState.set(getValueAndSubscribeState());
   };
 
-  const internalSharedState = createSharedState(
-    valueGetter((sharedState) => {
-      dependencyMap.set(sharedState, sharedState.subscribe(update));
-
-      return sharedState.get();
-    })
-  );
+  const internalSharedState = createSharedState(getValueAndSubscribeState());
 
   return {
     get: internalSharedState.get,
@@ -93,7 +74,7 @@ export function createDerivedSharedState<T>(
         valueSetter(nextValue, previousValue);
       }
     },
-    reset: update,
     subscribe: internalSharedState.subscribe,
+    unsubscribe: internalSharedState.unsubscribe,
   };
 }

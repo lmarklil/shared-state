@@ -2,25 +2,28 @@ import {
   createDerivedSharedState,
   DerivedSharedStateValueGetter,
 } from "@shared-state/core";
-import { ComponentType, createElement } from "react";
+import { ComponentType, createElement, forwardRef } from "react";
 import { useSharedStateValue } from "./hooks";
 
-export function connectSharedState<T extends Record<string, any>>(
+export function connectSharedState<T extends Record<string, any>, Ref = any>(
   getValue: DerivedSharedStateValueGetter<T>
 ) {
   const derivedSharedState = createDerivedSharedState(getValue);
 
-  return function withSharedState<Props extends T>(
-    WrappedComponent: ComponentType<Props>
+  return function withSharedState<Props>(
+    WrappedComponent: ComponentType<Props & T>
   ) {
-    function ComponentWithSharedState(props: Props) {
-      const derivedSharedStateValue = useSharedStateValue(derivedSharedState);
+    const ComponentWithSharedState = forwardRef<Ref, Props>(
+      function ComponentWithSharedState(props, ref) {
+        const derivedSharedStateValue = useSharedStateValue(derivedSharedState);
 
-      return createElement(WrappedComponent, {
-        ...props,
-        ...derivedSharedStateValue,
-      });
-    }
+        return createElement(WrappedComponent, {
+          ref,
+          ...props,
+          ...derivedSharedStateValue,
+        });
+      }
+    );
 
     ComponentWithSharedState.displayName = `withSharedState(${
       WrappedComponent.displayName || WrappedComponent.name || "Component"

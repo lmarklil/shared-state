@@ -1,23 +1,20 @@
-import { createSharedState, SharedState } from "@shared-state/core";
+import { createSharedState } from "@shared-state/core";
 import {
-  PersistedSharedState,
+  PersistentSharedState,
   PersistentOptions,
   PersistentValue,
+  PersistentStorage,
 } from "./types";
 
-export function persist<T>(
-  sharedState: SharedState<T>,
+export function createPersistentSharedState<T>(
+  storage: PersistentStorage<PersistentValue<T>>,
+  key: string,
+  initialValue: T,
   options: PersistentOptions<T>
-): PersistedSharedState<T> {
-  const {
-    key,
-    storage,
-    version,
-    migrate,
-    onHydrationStart,
-    onHydrationEnd,
-    onHydrationFailed,
-  } = options;
+): PersistentSharedState<T> {
+  const { version, migrate, onHydrationStart, onHydrationEnd } = options;
+
+  const sharedState = createSharedState(initialValue);
 
   const hydrationState = createSharedState(false);
 
@@ -34,8 +31,10 @@ export function persist<T>(
   };
 
   const hydrate = () => {
-    hydrationState.set(true);
     ignoreHydration = false;
+
+    hydrationState.set(true);
+
     onHydrationStart?.();
 
     const getStorageResult = storage.get(key);
@@ -48,25 +47,33 @@ export function persist<T>(
       }
 
       hydrationState.set(false);
+
       onHydrationEnd?.();
     };
 
     if (getStorageResult instanceof Promise) {
-      getStorageResult.then(hydrateValueToSharedState).catch(onHydrationFailed);
+      getStorageResult.then(hydrateValueToSharedState).catch(onHydrationEnd);
     } else {
-      hydrateValueToSharedState(getStorageResult);
+      try {
+        hydrateValueToSharedState(getStorageResult);
+      } catch (error) {
+        onHydrationEnd?.(error);
+      }
     }
   };
 
   hydrate();
 
-  storage.subscribe?.(key, (persistentValue) => {
+  storage.subscribe?.((updateKey, nextValue, previousValue) => {
+    if (updateKey !== key || Object.is(nextValue, previousValue)) return;
+
     ignoreHydration = true;
 
-    if (persistentValue !== null) {
-      setSharedStateWithPersistentValue(persistentValue);
+    if (nextValue !== null) {
+      setSharedStateWithPersistentValue(nextValue);
     } else {
-      sharedState.reset();
+      storage.remove(key);
+      sharedState.set(initialValue);
     }
   });
 
@@ -83,13 +90,7 @@ export function persist<T>(
       });
     },
     subscribe: sharedState.subscribe,
-    reset: () => {
-      ignoreHydration = true;
-
-      storage.remove(key);
-      sharedState.reset();
-    },
-    hydrate,
+    unsubscribe: sharedState.unsubscribe,
     hydrationState,
   };
 }

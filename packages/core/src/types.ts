@@ -7,8 +7,8 @@ export type ValueOrUpdater<T> = T | Updater<T>;
 export type SharedState<T> = {
   get: () => T;
   set: (valueOrUpdater: ValueOrUpdater<T>) => void;
-  reset: () => void;
-  subscribe: (handler: Subscriber<T>) => () => void;
+  subscribe: (handler: Subscriber<T>) => void;
+  unsubscribe: (handler: Subscriber<T>) => void;
 };
 
 export type DerivedSharedStateValueGetter<T> = (
@@ -21,13 +21,3 @@ export type DerivedSharedStateValueSetter<T> = (
   nextValue: T,
   previousValue: T
 ) => void;
-
-export type AsyncDerivedSharedStateValueGetter<T> =
-  DerivedSharedStateValueGetter<Promise<T>>;
-
-export type AsyncDerivedSharedStateValueSetter<T> =
-  DerivedSharedStateValueSetter<T | undefined>;
-
-export type AsyncDerivedSharedState<T> = SharedState<T | undefined> & {
-  hydrationState: SharedState<boolean>;
-};

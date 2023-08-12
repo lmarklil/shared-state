@@ -45,6 +45,5 @@ export default [
   createBuildConfig("core"),
   createBuildConfig("react", ["@shared-state/core", "react"]),
   createBuildConfig("vue", ["@shared-state/core", "vue"]),
-  createBuildConfig("persist", ["@shared-state/core"]),
-  createBuildConfig("logger", ["@shared-state/core"]),
+  createBuildConfig("persistence", ["@shared-state/core"]),
 ];

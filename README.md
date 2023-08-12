@@ -24,8 +24,27 @@ counter.set((count) => count + 1); // Update state
 counter.subscribe(({ previousState, nextState }) =>
   console.log(previousState, nextState)
 ); // Subscribe state
+```
 
-counter.destroy(); // Destroy state
+### Derived state
+
+```js
+import {
+  createSharedState,
+  createDerivedSharedState,
+} from "@shared-state/core";
+
+const sharedCount = createSharedState(0);
+
+const sharedDoubleCount = createDerivedSharedState(
+  (get) => get(sharedCount) * 2
+);
+
+console.log(sharedCount.get(), sharedDoubleCount.get()); // count:0, doubleCount:0
+
+sharedCount.set((count) => count + 1);
+
+console.log(sharedCount.get(), sharedDoubleCount.get()); // count:1, doubleCount:2
 ```
 
 ### Using with React function component
@@ -67,62 +86,3 @@ class Counter extends Component {
   }
 }
 ```
-
-### Derived state
-
-```js
-import {
-  createSharedState,
-  createDerivedSharedState,
-} from "@shared-state/core";
-
-const sharedCount = createSharedState(0);
-
-const sharedDoubleCount = createDerivedSharedState(
-  (get) => get(sharedCount) * 2
-);
-
-console.log(sharedCount.get(), sharedDoubleCount.get()); // count:0, doubleCount:0
-
-sharedCount.set((count) => count + 1);
-
-console.log(sharedCount.get(), sharedDoubleCount.get()); // count:1, doubleCount:2
-```
-
-### Middleware
-
-#### Custom middleware
-
-```js
-import { createSharedState } from "@shared-state/core";
-
-function logger(sharedState) {
-  sharedState.subscribe(({ previousState, nextState }) =>
-    console.log(previousState, nextState)
-  );
-
-  return sharedState;
-}
-
-const counter = logger(createSharedState(0));
-```
-
-#### Custom `createSharedState` with middleware
-
-```js
-import { createSharedState } from "@shared-state/core";
-import { persist, createWebPersistentStorage } from "@shared-state/persist";
-
-function createPersistentSharedState(initialValue, options) {
-  return persist(createSharedState(initialValue), options);
-}
-
-const counter = createPersistentSharedState(0, {
-  key: "counter",
-  storage: createWebPersistentStorage(localStorage),
-});
-```
-
-## API
-
-TODO

@@ -6,16 +6,11 @@ export function useSharedState<T>(sharedState: SharedState<T>) {
 
   watch(valueShallowRef, (value) => sharedState.set(value));
 
-  let unbsubscribe: () => void;
+  const update = () => (valueShallowRef.value = sharedState.get());
 
-  onBeforeMount(
-    () =>
-      (unbsubscribe = sharedState.subscribe(
-        (nextValue) => (valueShallowRef.value = nextValue)
-      ))
-  );
+  onBeforeMount(() => sharedState.subscribe(update));
 
-  onBeforeUnmount(() => unbsubscribe());
+  onBeforeUnmount(() => sharedState.unsubscribe(update));
 
   return valueShallowRef;
 }

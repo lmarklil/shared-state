@@ -18,10 +18,10 @@ pnpm install @shared-state/core @shared-state/react
 import { createSharedState } from "@shared-state/core";
 import { useSharedState } from "@shared-state/react";
 
-const sharedCount = createSharedState(0);
+const SharedCount = createSharedState(0);
 
 function Counter() {
-  const [count, setCount] = useSharedState(sharedCount);
+  const [count, setCount] = useSharedState(SharedCount);
 
   return (
     <button onClick={() => setCount((count) => count + 1)}>{count}</button>
@@ -36,18 +36,68 @@ import { Component } from "react";
 import { createSharedState } from "@shared-state/core";
 import { connectSharedState } from "@shared-state/react";
 
-const sharedCount = createSharedState(0);
+const SharedCount = createSharedState(0);
 
 @connectSharedState((get) => ({
-  count: get(sharedCount),
+  count: get(SharedCount),
 }))
 class Counter extends Component {
   render() {
     return (
-      <button onClick={() => sharedCount.set((count) => count + 1)}>
+      <button onClick={() => SharedCount.set((count) => count + 1)}>
         {this.props.count}
       </button>
     );
   }
+}
+```
+
+### Scoped shared state
+
+```jsx
+import { useRef } from "react";
+import { createSharedState } from "@shared-state/core";
+import { createScopedSharedState } from "@shared-state/react";
+
+const ScopedSharedState = createScopedSharedState();
+
+function Count() {
+  const count = ScopedSharedState.useState();
+
+  return <span>{count}</span>;
+}
+
+function IncreaseButton() {
+  const setCount = ScopedSharedState.useSetState();
+
+  return <button onClick={() => setCount((count) => count + 1)}>+</button>;
+}
+
+function ScopedCounter(props) {
+  const { initialValue } = props;
+
+  const sharedStateRef = useRef();
+
+  if (!sharedStateRef.current) {
+    sharedStateRef.current = createSharedState(initialValue);
+  }
+
+  return (
+    <ScopedSharedState.Provider sharedState={sharedState}>
+      <div>
+        <Count />
+        <IncreaseButton />
+      </div>
+    </ScopedSharedState.Provider>
+  );
+}
+
+function App() {
+  return (
+    <>
+      <ScopedCounter initialValue={1} />
+      <ScopedCounter initialValue={10} />
+    </>
+  );
 }
 ```

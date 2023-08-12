@@ -26,8 +26,6 @@ sharedCount.set((count) => count + 1); // Set value
 sharedCount.subscribe(({ previousState, nextState }) =>
   console.log(previousState, nextState)
 ); // Subscribe state
-
-sharedCount.destroy(); // Destroy state
 ```
 
 ### Derived state

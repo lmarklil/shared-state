@@ -1,4 +1,8 @@
-import { PersistentValue, PersistentStorage } from "./types";
+import {
+  PersistentValue,
+  PersistentStorageSubscriber,
+  PersistentStorage,
+} from "./types";
 
 export function withConverter<T, SerializedValue = any>(
   storage: PersistentStorage<SerializedValue>,
@@ -8,6 +12,11 @@ export function withConverter<T, SerializedValue = any>(
   }
 ): PersistentStorage<T> {
   const { serialize, deserialize } = options;
+
+  const internalHandlerMap = new Map<
+    PersistentStorageSubscriber<T>,
+    PersistentStorageSubscriber<SerializedValue>
+  >();
 
   const deserializeValue = (value: SerializedValue | null) => {
     if (value === null) return null;
@@ -31,44 +40,67 @@ export function withConverter<T, SerializedValue = any>(
       }
     },
     set: (key, value) => storage.set(key, serialize(value)),
-    subscribe: (key, handler) =>
-      storage.subscribe(key, (nextValue, previousValue) =>
+    subscribe: (handler) => {
+      const internalHandler: PersistentStorageSubscriber<SerializedValue> = (
+        key,
+        nextValue,
+        previousValue
+      ) =>
         handler(
+          key,
           nextValue !== null ? deserializeValue(nextValue) : null,
           previousValue !== null ? deserializeValue(previousValue) : null
-        )
-      ),
+        );
+
+      internalHandlerMap.set(handler, internalHandler);
+
+      storage.subscribe(internalHandler);
+    },
+    unsubscribe: (handler) => {
+      const internalHandler = internalHandlerMap.get(handler);
+
+      if (internalHandler) {
+        storage.unsubscribe(internalHandler);
+
+        internalHandlerMap.delete(handler);
+      }
+    },
   };
 }
 
 export function createWebPersistentStorage<T>(
   webStorage: Storage,
   options?: {
-    migrate?: (value: string) => T;
     serialize?: (value: PersistentValue<T>) => string;
     deserialize?: (value: string) => PersistentValue<T>;
   }
 ): PersistentStorage<PersistentValue<T>> {
+  const storageEventHandlerMap = new Map<
+    PersistentStorageSubscriber<string>,
+    (event: StorageEvent) => void
+  >();
+
   return withConverter<PersistentValue<T>, string>(
     {
       get: (key) => webStorage.getItem(key),
       set: (key, value) => webStorage.setItem(key, value),
       remove: (key) => webStorage.removeItem(key),
-      subscribe: (key, handler) => {
-        const eventHandler = (event: StorageEvent) => {
-          if (
-            !event.key ||
-            event.key !== key ||
-            event.newValue === event.oldValue
-          )
-            return;
+      subscribe: (handler) => {
+        const storageEventHandler = (event: StorageEvent) =>
+          event.key && handler(event.key, event.newValue, event.oldValue);
 
-          handler(event.newValue, event.oldValue);
-        };
+        storageEventHandlerMap.set(handler, storageEventHandler);
 
-        window.addEventListener("storage", eventHandler);
+        window.addEventListener("storage", storageEventHandler);
+      },
+      unsubscribe: (handler) => {
+        const storageEventHandler = storageEventHandlerMap.get(handler);
 
-        return () => window.removeEventListener("storage", eventHandler);
+        if (storageEventHandler) {
+          window.removeEventListener("storage", storageEventHandler);
+
+          storageEventHandlerMap.delete(handler);
+        }
       },
     },
     {

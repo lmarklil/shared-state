@@ -1,12 +1,12 @@
 {
-  "name": "@shared-state/logger",
+  "name": "@shared-state/persistence",
   "author": "Mark Li",
   "private": false,
   "repository": {
     "type": "git",
     "url": "git@github.com:lmarklil/shared-state.git"
   },
-  "version": "0.0.3",
+  "version": "0.0.1",
   "description": "",
   "keywords": [
     "shared-state"
