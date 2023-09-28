@@ -10,9 +10,15 @@ export function createPersistenceSharedState<T>(
   storage: PersistenceStorage<PersistenceValue<T>>,
   key: string,
   initialValue: T,
-  options: PersistenceOptions<T>
+  options?: PersistenceOptions<T>
 ): PersistenceSharedState<T> {
-  const { version, migrate, onHydrationStart, onHydrationEnd } = options;
+  const version = options?.version;
+
+  const migrate = options?.migrate;
+
+  const onHydrationStart = options?.onHydrationStart;
+
+  const onHydrationEnd = options?.onHydrationEnd;
 
   const sharedState = createSharedState(initialValue);
 

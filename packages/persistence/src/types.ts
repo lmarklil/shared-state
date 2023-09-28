@@ -24,8 +24,6 @@ export type PersistenceSharedState<T> = SharedState<T> & {
 };
 
 export type PersistenceOptions<T> = {
-  key: string;
-  storage: PersistenceStorage<PersistenceValue<T>>;
   version?: string | number;
   migrate?: (value: any, version: string | number | undefined) => T;
   onHydrationStart?: () => void;
