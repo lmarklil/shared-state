@@ -1,3 +1,3 @@
-export * from "./persist";
-export * from "./utils";
 export * from "./types";
+export * from "./persistence";
+export * from "./utils";

@@ -1,38 +1,24 @@
-import { useSyncExternalStore } from "use-sync-external-store/shim";
-import { SharedState, Subscriber } from "@shared-state/core";
 import { useCallback } from "react";
+import { useSyncExternalStoreWithSelector } from "use-sync-external-store/shim/with-selector";
+import { SharedState } from "@shared-state/core";
+import { Selector } from "./types";
 
-export function useSharedStateValueWithSelector<T, SelectedValue>(
-  sharedState: SharedState<T>,
-  selector: (value: T) => SelectedValue,
-  isEqual: (
-    nextValue: SelectedValue,
-    previousValue: SelectedValue
-  ) => boolean = Object.is
+export function useSharedStateValueWithSelector<Value, SelectedValue>(
+  sharedState: SharedState<Value>,
+  selector: Selector<Value, SelectedValue>
 ) {
-  const subscribe = useCallback(
-    (onStoreChange: () => void) => {
-      const handler: Subscriber<T> = (nextValue, previousValue) => {
-        if (!isEqual(selector(nextValue), selector(previousValue))) {
-          onStoreChange();
-        }
-      };
+  const subscribe = useCallback((onStoreChange: () => void) => {
+    sharedState.subscribe(onStoreChange);
 
-      sharedState.subscribe(handler);
+    return () => sharedState.unsubscribe(onStoreChange);
+  }, []);
 
-      return () => sharedState.unsubscribe(handler);
-    },
-    [sharedState, selector]
+  return useSyncExternalStoreWithSelector(
+    subscribe,
+    sharedState.get,
+    sharedState.get,
+    selector
   );
-
-  const getSnapshot = useCallback(
-    () => selector(sharedState.get()),
-    [sharedState, selector]
-  );
-
-  const value = useSyncExternalStore(subscribe, getSnapshot);
-
-  return value;
 }
 
 function defaultSelector<T>(value: T) {
@@ -43,9 +29,7 @@ export function useSharedStateValue<T>(sharedState: SharedState<T>) {
   return useSharedStateValueWithSelector(sharedState, defaultSelector);
 }
 
-export function useSetSharedState<T>(
-  sharedState: SharedState<T>
-): SharedState<T>["set"] {
+export function useSetSharedState<T>(sharedState: SharedState<T>) {
   return sharedState.set;
 }
 

@@ -1,31 +1,31 @@
 import { SharedState } from "@shared-state/core";
 
-export type PersistentValue<T = any> = {
+export type PersistenceValue<T = any> = {
   value: T;
   version?: string | number | undefined;
 };
 
-export type PersistentStorageSubscriber<T> = (
+export type PersistenceStorageSubscriber<T> = (
   key: string,
   nextValue: T | null,
   previousValue: T | null
 ) => void;
 
-export type PersistentStorage<T> = {
+export type PersistenceStorage<T> = {
   get: (key: string) => (T | null) | Promise<T | null>;
   set: (key: string, value: T) => void | Promise<void>;
   remove: (key: string) => void;
-  subscribe: (handler: PersistentStorageSubscriber<T>) => void;
-  unsubscribe: (handler: PersistentStorageSubscriber<T>) => void;
+  subscribe: (handler: PersistenceStorageSubscriber<T>) => void;
+  unsubscribe: (handler: PersistenceStorageSubscriber<T>) => void;
 };
 
-export type PersistentSharedState<T> = SharedState<T> & {
+export type PersistenceSharedState<T> = SharedState<T> & {
   hydrationState: SharedState<boolean>;
 };
 
-export type PersistentOptions<T> = {
+export type PersistenceOptions<T> = {
   key: string;
-  storage: PersistentStorage<PersistentValue<T>>;
+  storage: PersistenceStorage<PersistenceValue<T>>;
   version?: string | number;
   migrate?: (value: any, version: string | number | undefined) => T;
   onHydrationStart?: () => void;

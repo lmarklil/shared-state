@@ -1,17 +1,17 @@
 import { createSharedState } from "@shared-state/core";
 import {
-  PersistentSharedState,
-  PersistentOptions,
-  PersistentValue,
-  PersistentStorage,
+  PersistenceSharedState,
+  PersistenceOptions,
+  PersistenceValue,
+  PersistenceStorage,
 } from "./types";
 
-export function createPersistentSharedState<T>(
-  storage: PersistentStorage<PersistentValue<T>>,
+export function createPersistenceSharedState<T>(
+  storage: PersistenceStorage<PersistenceValue<T>>,
   key: string,
   initialValue: T,
-  options: PersistentOptions<T>
-): PersistentSharedState<T> {
+  options: PersistenceOptions<T>
+): PersistenceSharedState<T> {
   const { version, migrate, onHydrationStart, onHydrationEnd } = options;
 
   const sharedState = createSharedState(initialValue);
@@ -20,8 +20,8 @@ export function createPersistentSharedState<T>(
 
   let ignoreHydration = false;
 
-  const setSharedStateWithPersistentValue = (
-    persistentValue: PersistentValue<T>
+  const setSharedStateWithPersistenceValue = (
+    persistentValue: PersistenceValue<T>
   ) => {
     if (persistentValue.version === version) {
       sharedState.set(persistentValue.value);
@@ -40,10 +40,10 @@ export function createPersistentSharedState<T>(
     const getStorageResult = storage.get(key);
 
     const hydrateValueToSharedState = (
-      persistentValue: PersistentValue<T> | null
+      persistentValue: PersistenceValue<T> | null
     ) => {
       if (!ignoreHydration && persistentValue !== null) {
-        setSharedStateWithPersistentValue(persistentValue);
+        setSharedStateWithPersistenceValue(persistentValue);
       }
 
       hydrationState.set(false);
@@ -70,7 +70,7 @@ export function createPersistentSharedState<T>(
     ignoreHydration = true;
 
     if (nextValue !== null) {
-      setSharedStateWithPersistentValue(nextValue);
+      setSharedStateWithPersistenceValue(nextValue);
     } else {
       storage.remove(key);
       sharedState.set(initialValue);

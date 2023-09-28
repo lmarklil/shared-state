@@ -1,21 +1,21 @@
 import {
-  PersistentValue,
-  PersistentStorageSubscriber,
-  PersistentStorage,
+  PersistenceValue,
+  PersistenceStorageSubscriber,
+  PersistenceStorage,
 } from "./types";
 
 export function withConverter<T, SerializedValue = any>(
-  storage: PersistentStorage<SerializedValue>,
+  storage: PersistenceStorage<SerializedValue>,
   options: {
     serialize: (value: T) => SerializedValue;
     deserialize: (value: SerializedValue) => T;
   }
-): PersistentStorage<T> {
+): PersistenceStorage<T> {
   const { serialize, deserialize } = options;
 
   const internalHandlerMap = new Map<
-    PersistentStorageSubscriber<T>,
-    PersistentStorageSubscriber<SerializedValue>
+    PersistenceStorageSubscriber<T>,
+    PersistenceStorageSubscriber<SerializedValue>
   >();
 
   const deserializeValue = (value: SerializedValue | null) => {
@@ -41,7 +41,7 @@ export function withConverter<T, SerializedValue = any>(
     },
     set: (key, value) => storage.set(key, serialize(value)),
     subscribe: (handler) => {
-      const internalHandler: PersistentStorageSubscriber<SerializedValue> = (
+      const internalHandler: PersistenceStorageSubscriber<SerializedValue> = (
         key,
         nextValue,
         previousValue
@@ -68,19 +68,19 @@ export function withConverter<T, SerializedValue = any>(
   };
 }
 
-export function createWebPersistentStorage<T>(
+export function createWebPersistenceStorage<T>(
   webStorage: Storage,
   options?: {
-    serialize?: (value: PersistentValue<T>) => string;
-    deserialize?: (value: string) => PersistentValue<T>;
+    serialize?: (value: PersistenceValue<T>) => string;
+    deserialize?: (value: string) => PersistenceValue<T>;
   }
-): PersistentStorage<PersistentValue<T>> {
+): PersistenceStorage<PersistenceValue<T>> {
   const storageEventHandlerMap = new Map<
-    PersistentStorageSubscriber<string>,
+    PersistenceStorageSubscriber<string>,
     (event: StorageEvent) => void
   >();
 
-  return withConverter<PersistentValue<T>, string>(
+  return withConverter<PersistenceValue<T>, string>(
     {
       get: (key) => webStorage.getItem(key),
       set: (key, value) => webStorage.setItem(key, value),

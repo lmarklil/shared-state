@@ -10,14 +10,3 @@ export type SharedState<T> = {
   subscribe: (handler: Subscriber<T>) => void;
   unsubscribe: (handler: Subscriber<T>) => void;
 };
-
-export type DerivedSharedStateValueGetter<T> = (
-  getSharedStateValue: <SharedStateValue>(
-    sharedState: SharedState<SharedStateValue>
-  ) => SharedStateValue
-) => T;
-
-export type DerivedSharedStateValueSetter<T> = (
-  nextValue: T,
-  previousValue: T
-) => void;

@@ -16,18 +16,18 @@ pnpm install @shared-state/core @shared-state/persistence
 
 ```js
 import {
-  createPersistentSharedState,
-  createWebPersistentStorage,
+  createPersistenceSharedState,
+  createWebPersistenceStorage,
 } from "@shared-state/persistence";
 
-const localStoragePersistentState = createPersistentSharedState(
-  createWebPersistentStorage(localStorage),
+const localStoragePersistenceState = createPersistenceSharedState(
+  createWebPersistenceStorage(localStorage),
   "localStorage",
   0
 );
 
-const sessionStoragePersistentState = createPersistentSharedState(
-  createWebPersistentStorage(sessionStorage),
+const sessionStoragePersistenceState = createPersistenceSharedState(
+  createWebPersistenceStorage(sessionStorage),
   "sessionStorage",
   0
 );
@@ -37,13 +37,13 @@ const sessionStoragePersistentState = createPersistentSharedState(
 
 ```js
 import { createSharedState } from "@shared-state/core";
-import { persist, createWebPersistentStorage } from "@shared-state/persistence";
+import { persist, createWebPersistenceStorage } from "@shared-state/persistence";
 
-const persistentState = createPersistentSharedState(
-  createWebPersistentStorage(localStorage),
+const persistenceState = createPersistenceSharedState(
+  createWebPersistenceStorage(localStorage),
   "localStorage",
   0
 );
 
-persistentState.hydrationState.subscribe((hydrating) => console.log(hydrating));
+persistenceState.hydrationState.subscribe((hydrating) => console.log(hydrating));
 ```
