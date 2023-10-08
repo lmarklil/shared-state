@@ -1,11 +1,12 @@
 import { useCallback } from "react";
 import { useSyncExternalStoreWithSelector } from "use-sync-external-store/shim/with-selector";
 import { SharedState } from "@shared-state/core";
-import { Selector } from "./types";
+import { Selector, Comparator } from "./types";
 
 export function useSharedStateValueWithSelector<Value, SelectedValue>(
   sharedState: SharedState<Value>,
-  selector: Selector<Value, SelectedValue>
+  selector: Selector<Value, SelectedValue>,
+  comparator?: Comparator<SelectedValue>
 ) {
   const subscribe = useCallback((onStoreChange: () => void) => {
     sharedState.subscribe(onStoreChange);
@@ -17,7 +18,8 @@ export function useSharedStateValueWithSelector<Value, SelectedValue>(
     subscribe,
     sharedState.get,
     sharedState.get,
-    selector
+    selector,
+    comparator
   );
 }
 
