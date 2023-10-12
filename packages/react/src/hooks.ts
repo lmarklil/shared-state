@@ -7,7 +7,7 @@ function defaultSelector<T>(value: T) {
   return value;
 }
 
-export function useSharedStateValue<Value, SelectedValue>(
+export function useSharedStateValue<Value, SelectedValue = Value>(
   sharedState: SharedState<Value>,
   selector: Selector<Value, SelectedValue> = defaultSelector as any,
   comparator?: Comparator<SelectedValue>
