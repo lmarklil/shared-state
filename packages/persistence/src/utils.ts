@@ -4,17 +4,17 @@ import {
   PersistenceStorage,
 } from "./types";
 
-export function withConverter<T, SerializedValue = any>(
+export function withConverter<SerializedValue = any>(
   storage: PersistenceStorage<SerializedValue>,
   options: {
-    serialize: (value: T) => SerializedValue;
-    deserialize: (value: SerializedValue) => T;
+    serialize: (value: PersistenceValue) => SerializedValue;
+    deserialize: (value: SerializedValue) => PersistenceValue;
   }
-): PersistenceStorage<T> {
+): PersistenceStorage<PersistenceValue> {
   const { serialize, deserialize } = options;
 
   const internalHandlerMap = new Map<
-    PersistenceStorageSubscriber<T>,
+    PersistenceStorageSubscriber<PersistenceValue>,
     PersistenceStorageSubscriber<SerializedValue>
   >();
 
@@ -68,23 +68,22 @@ export function withConverter<T, SerializedValue = any>(
   };
 }
 
-export function createWebPersistenceStorage<T>(
+export function createWebPersistenceStorage(
   webStorage: Storage,
   options?: {
-    serialize?: (value: PersistenceValue<T>) => string;
-    deserialize?: (value: string) => PersistenceValue<T>;
+    serialize?: (value: PersistenceValue) => string;
+    deserialize?: (value: string) => PersistenceValue;
   }
-): PersistenceStorage<PersistenceValue<T>> {
+): PersistenceStorage<PersistenceValue> {
   const storageEventHandlerMap = new Map<
     PersistenceStorageSubscriber<string>,
     (event: StorageEvent) => void
   >();
 
-  return withConverter<PersistenceValue<T>, string>(
+  return withConverter(
     {
       get: (key) => webStorage.getItem(key),
       set: (key, value) => webStorage.setItem(key, value),
-      remove: (key) => webStorage.removeItem(key),
       subscribe: (handler) => {
         const storageEventHandler = (event: StorageEvent) =>
           event.key && handler(event.key, event.newValue, event.oldValue);

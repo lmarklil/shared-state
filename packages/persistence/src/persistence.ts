@@ -1,4 +1,4 @@
-import { createSharedState } from "@shared-state/core";
+import { Updater, ValueOrUpdater, createSharedState } from "@shared-state/core";
 import {
   PersistenceSharedState,
   PersistenceOptions,
@@ -7,64 +7,80 @@ import {
 } from "./types";
 
 export function createPersistenceSharedState<T>(
-  storage: PersistenceStorage<PersistenceValue<T>>,
+  storage: PersistenceStorage<PersistenceValue>,
   key: string,
   initialValue: T,
   options?: PersistenceOptions<T>
 ): PersistenceSharedState<T> {
   const version = options?.version;
 
-  const migrate = options?.migrate;
+  const migrator = options?.migrator;
 
   const onHydrationStart = options?.onHydrationStart;
 
   const onHydrationEnd = options?.onHydrationEnd;
 
+  const onMutationStart = options?.onMutationStart;
+
+  const onMutationEnd = options?.onMutationEnd;
+
   const sharedState = createSharedState(initialValue);
 
   const hydrationState = createSharedState(false);
 
-  let ignoreHydration = false;
+  const mutationState = createSharedState(false);
 
-  const setSharedStateWithPersistenceValue = (
-    persistentValue: PersistenceValue<T>
+  let lastHydrationTime: number | null = null;
+
+  let lastMutationTime: number | null = null;
+
+  const hydratePersistenceValueToSharedState = (
+    persistentValue: PersistenceValue | null
   ) => {
-    if (persistentValue.version === version) {
-      sharedState.set(persistentValue.value);
-    } else if (persistentValue.version !== version && migrate) {
-      sharedState.set(migrate(persistentValue.value, persistentValue.version));
+    if (persistentValue !== null) {
+      if (persistentValue.version === version) {
+        sharedState.set(persistentValue.value);
+      } else {
+        if (!migrator) return;
+
+        if (Object.hasOwn(persistentValue, "value")) {
+          sharedState.set(
+            migrator(persistentValue.value, persistentValue.version)
+          );
+        } else {
+          sharedState.set(migrator(persistentValue)); // persistentValue有可能是不支持的数据结构，此时将完整的值返回给用户处理
+        }
+      }
     }
   };
 
-  const hydrate = () => {
-    ignoreHydration = false;
+  const hydrate = async () => {
+    onHydrationStart?.();
 
     hydrationState.set(true);
 
-    onHydrationStart?.();
+    const hydrationTime = new Date().getTime();
 
-    const getStorageResult = storage.get(key);
+    lastHydrationTime = hydrationTime;
 
-    const hydrateValueToSharedState = (
-      persistentValue: PersistenceValue<T> | null
-    ) => {
-      if (!ignoreHydration && persistentValue !== null) {
-        setSharedStateWithPersistenceValue(persistentValue);
+    try {
+      const getStorageResult = await storage.get(key);
+
+      if (lastHydrationTime !== hydrationTime) return;
+
+      if (lastMutationTime === null || hydrationTime > lastMutationTime) {
+        hydratePersistenceValueToSharedState(getStorageResult);
       }
 
       hydrationState.set(false);
 
       onHydrationEnd?.();
-    };
+    } catch (error) {
+      if (lastHydrationTime !== hydrationTime) return;
 
-    if (getStorageResult instanceof Promise) {
-      getStorageResult.then(hydrateValueToSharedState).catch(onHydrationEnd);
-    } else {
-      try {
-        hydrateValueToSharedState(getStorageResult);
-      } catch (error) {
-        onHydrationEnd?.(error);
-      }
+      hydrationState.set(false);
+
+      onHydrationEnd?.(error);
     }
   };
 
@@ -73,30 +89,89 @@ export function createPersistenceSharedState<T>(
   storage.subscribe?.((updateKey, nextValue, previousValue) => {
     if (updateKey !== key || Object.is(nextValue, previousValue)) return;
 
-    ignoreHydration = true;
+    onHydrationStart?.();
 
-    if (nextValue !== null) {
-      setSharedStateWithPersistenceValue(nextValue);
-    } else {
-      storage.remove(key);
-      sharedState.set(initialValue);
+    hydrationState.set(true);
+
+    const hydrationTime = new Date().getTime();
+
+    lastHydrationTime = hydrationTime;
+
+    try {
+      if (lastHydrationTime !== hydrationTime) return;
+
+      if (nextValue !== null) {
+        // 根据数据最后修改时间来确定是否用存储数据覆盖本地状态
+        if (
+          lastMutationTime === null ||
+          nextValue.lastModified > lastMutationTime
+        ) {
+          hydratePersistenceValueToSharedState(nextValue);
+        }
+      } else {
+        // 清空操作暂时无法判断是在lastMutation之前还是之后发生的，所以我们还是按照数据至上的原则，根据hydrationTime是否大于lastMutationTime来确定是否清除数据
+        if (lastMutationTime === null || hydrationTime > lastMutationTime) {
+          sharedState.set(initialValue);
+        }
+      }
+
+      hydrationState.set(false);
+
+      onHydrationEnd?.();
+    } catch (error) {
+      if (lastHydrationTime !== hydrationTime) return;
+
+      hydrationState.set(false);
+
+      onHydrationEnd?.(error);
     }
   });
 
+  const mutate = async (valueOrUpdater: ValueOrUpdater<T>) => {
+    onMutationStart?.();
+
+    mutationState.set(true);
+
+    const mutationTime = new Date().getTime();
+
+    lastMutationTime = mutationTime;
+
+    const previousValue = sharedState.get();
+
+    const nextValue =
+      typeof valueOrUpdater === "function"
+        ? (valueOrUpdater as Updater<T>)(previousValue)
+        : valueOrUpdater;
+
+    try {
+      await storage.set(key, {
+        value: nextValue,
+        version,
+        lastModified: mutationTime,
+      });
+
+      if (lastMutationTime === mutationTime) return;
+
+      sharedState.set(nextValue);
+
+      mutationState.set(false);
+
+      onMutationEnd?.();
+    } catch (error) {
+      if (lastMutationTime === mutationTime) return;
+
+      mutationState.set(false);
+
+      onMutationEnd?.(error);
+    }
+  };
+
   return {
     get: sharedState.get,
-    set: (valueOrUpdater) => {
-      ignoreHydration = true;
-
-      sharedState.set(valueOrUpdater);
-
-      storage.set(key, {
-        value: sharedState.get(),
-        version,
-      });
-    },
+    set: mutate,
     subscribe: sharedState.subscribe,
     unsubscribe: sharedState.unsubscribe,
     hydrationState,
+    mutationState,
   };
 }

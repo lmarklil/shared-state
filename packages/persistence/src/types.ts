@@ -1,8 +1,9 @@
 import { SharedState } from "@shared-state/core";
 
-export type PersistenceValue<T = any> = {
-  value: T;
+export type PersistenceValue = {
+  value: any;
   version?: string | number | undefined;
+  lastModified: number;
 };
 
 export type PersistenceStorageSubscriber<T> = (
@@ -14,18 +15,20 @@ export type PersistenceStorageSubscriber<T> = (
 export type PersistenceStorage<T> = {
   get: (key: string) => (T | null) | Promise<T | null>;
   set: (key: string, value: T) => void | Promise<void>;
-  remove: (key: string) => void;
   subscribe: (handler: PersistenceStorageSubscriber<T>) => void;
   unsubscribe: (handler: PersistenceStorageSubscriber<T>) => void;
 };
 
 export type PersistenceSharedState<T> = SharedState<T> & {
   hydrationState: SharedState<boolean>;
+  mutationState: SharedState<boolean>;
 };
 
 export type PersistenceOptions<T> = {
   version?: string | number;
-  migrate?: (value: any, version: string | number | undefined) => T;
+  migrator?: (value: PersistenceValue, version?: number | string) => T;
   onHydrationStart?: () => void;
   onHydrationEnd?: (error?: any) => void;
+  onMutationStart?: () => void;
+  onMutationEnd?: (error?: any) => void;
 };
