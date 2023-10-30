@@ -29,7 +29,6 @@ export function withConverter<SerializedValue = any>(
   };
 
   return {
-    ...storage,
     get: (key) => {
       const getStorageResult = storage.get(key);
 
@@ -40,31 +39,33 @@ export function withConverter<SerializedValue = any>(
       }
     },
     set: (key, value) => storage.set(key, serialize(value)),
-    subscribe: (handler) => {
-      const internalHandler: PersistenceStorageSubscriber<SerializedValue> = (
-        key,
-        nextValue,
-        previousValue
-      ) =>
-        handler(
-          key,
-          nextValue !== null ? deserializeValue(nextValue) : null,
-          previousValue !== null ? deserializeValue(previousValue) : null
-        );
+    subscribe: storage.subscribe
+      ? (handler) => {
+          const internalHandler: PersistenceStorageSubscriber<
+            SerializedValue
+          > = (key, nextValue, previousValue) =>
+            handler(
+              key,
+              nextValue !== null ? deserializeValue(nextValue) : null,
+              previousValue !== null ? deserializeValue(previousValue) : null
+            );
 
-      internalHandlerMap.set(handler, internalHandler);
+          internalHandlerMap.set(handler, internalHandler);
 
-      storage.subscribe(internalHandler);
-    },
-    unsubscribe: (handler) => {
-      const internalHandler = internalHandlerMap.get(handler);
+          storage.subscribe?.(internalHandler);
+        }
+      : undefined,
+    unsubscribe: storage.unsubscribe
+      ? (handler) => {
+          const internalHandler = internalHandlerMap.get(handler);
 
-      if (internalHandler) {
-        storage.unsubscribe(internalHandler);
+          if (internalHandler) {
+            storage.unsubscribe?.(internalHandler);
 
-        internalHandlerMap.delete(handler);
-      }
-    },
+            internalHandlerMap.delete(handler);
+          }
+        }
+      : undefined,
   };
 }
 
