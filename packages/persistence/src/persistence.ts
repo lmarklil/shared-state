@@ -150,7 +150,7 @@ export function createPersistenceSharedState<T>(
         lastModified: mutationTime,
       });
 
-      if (lastMutationTime === mutationTime) return;
+      if (lastMutationTime !== mutationTime) return;
 
       sharedState.set(nextValue);
 
@@ -158,7 +158,7 @@ export function createPersistenceSharedState<T>(
 
       onMutationEnd?.();
     } catch (error) {
-      if (lastMutationTime === mutationTime) return;
+      if (lastMutationTime !== mutationTime) return;
 
       mutationState.set(false);
 
