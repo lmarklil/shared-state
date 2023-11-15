@@ -54,7 +54,7 @@ export function createPersistenceSharedState<T>(
     }
   };
 
-  const hydrate = async () => {
+  const hydrate = () => {
     onHydrationStart?.();
 
     hydrationState.set(true);
@@ -63,24 +63,38 @@ export function createPersistenceSharedState<T>(
 
     lastHydrationTime = hydrationTime;
 
-    try {
-      const getStorageResult = await storage.get(key);
-
+    const commit = (persistentValue: PersistenceValue | null) => {
       if (lastHydrationTime !== hydrationTime) return;
 
       if (lastMutationTime === null || hydrationTime > lastMutationTime) {
-        hydratePersistenceValueToSharedState(getStorageResult);
+        hydratePersistenceValueToSharedState(persistentValue);
       }
 
       hydrationState.set(false);
 
       onHydrationEnd?.();
-    } catch (error) {
+    };
+
+    const throwError = (error: any) => {
       if (lastHydrationTime !== hydrationTime) return;
 
       hydrationState.set(false);
 
       onHydrationEnd?.(error);
+    };
+
+    try {
+      const getStorageResult = storage.get(key);
+
+      if (getStorageResult instanceof Promise) {
+        getStorageResult
+          .then((persistentValue) => commit(persistentValue))
+          .catch((error) => throwError(error));
+      } else {
+        commit(getStorageResult);
+      }
+    } catch (error) {
+      throwError(error);
     }
   };
 
@@ -127,7 +141,7 @@ export function createPersistenceSharedState<T>(
     }
   });
 
-  const mutate = async (valueOrUpdater: ValueOrUpdater<T>) => {
+  const mutate = (valueOrUpdater: ValueOrUpdater<T>) => {
     onMutationStart?.();
 
     mutationState.set(true);
@@ -143,13 +157,7 @@ export function createPersistenceSharedState<T>(
         ? (valueOrUpdater as Updater<T>)(previousValue)
         : valueOrUpdater;
 
-    try {
-      await storage.set(key, {
-        value: nextValue,
-        version,
-        lastModified: mutationTime,
-      });
-
+    const commit = () => {
       if (lastMutationTime !== mutationTime) return;
 
       sharedState.set(nextValue);
@@ -157,12 +165,32 @@ export function createPersistenceSharedState<T>(
       mutationState.set(false);
 
       onMutationEnd?.();
-    } catch (error) {
+    };
+
+    const throwError = (error: any) => {
       if (lastMutationTime !== mutationTime) return;
 
       mutationState.set(false);
 
       onMutationEnd?.(error);
+    };
+
+    try {
+      const setStorageResult = storage.set(key, {
+        value: nextValue,
+        version,
+        lastModified: mutationTime,
+      });
+
+      if (setStorageResult instanceof Promise) {
+        setStorageResult
+          .then(() => commit())
+          .catch((error) => throwError(error));
+      } else {
+        commit();
+      }
+    } catch (error) {
+      throwError(error);
     }
   };
 
