@@ -32,10 +32,10 @@ counter.subscribe(({ previousState, nextState }) =>
 import { createSharedState } from "@shared-state/core";
 import { useSharedState } from "@shared-state/react";
 
-const sharedCount = createSharedState(0);
+const CounterState = createSharedState(0);
 
 function Counter() {
-  const [count, setCount] = useSharedState(sharedCount);
+  const [count, setCount] = useSharedState(CounterState);
 
   return (
     <button onClick={() => setCount((count) => count + 1)}>{count}</button>
