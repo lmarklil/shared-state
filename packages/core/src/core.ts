@@ -1,29 +1,53 @@
-import { SharedState, Subscriber, Updater, ValueOrUpdater } from "./types";
+import {
+  Getter,
+  ValueOrGetter,
+  SharedState,
+  Subscriber,
+  Updater,
+  ValueOrUpdater,
+} from "./types";
 
-export function createSharedState<T>(initialValue: T): SharedState<T> {
-  let value = initialValue;
+export function createSharedState<T>(
+  initialValueOrGetter: ValueOrGetter<T>
+): SharedState<T> {
+  let value: T;
 
   const subscriberSet = new Set<Subscriber<T>>();
 
+  const get = () => {
+    if (value === undefined) {
+      value =
+        typeof initialValueOrGetter === "function"
+          ? (initialValueOrGetter as Getter<T>)()
+          : initialValueOrGetter;
+    }
+
+    return value;
+  };
+
+  const set = (valueOrUpdater: ValueOrUpdater<T>) => {
+    const previousValue = get();
+
+    const nextValue =
+      typeof valueOrUpdater === "function"
+        ? (valueOrUpdater as Updater<T>)(previousValue)
+        : valueOrUpdater;
+
+    if (Object.is(nextValue, previousValue)) return;
+
+    value = nextValue;
+
+    subscriberSet.forEach((subscriber) => subscriber(nextValue, previousValue));
+  };
+
+  const subscribe = (handler: Subscriber<T>) => subscriberSet.add(handler);
+
+  const unsubscribe = (handler: Subscriber<T>) => subscriberSet.delete(handler);
+
   return {
-    get: () => value,
-    set: (valueOrUpdater: ValueOrUpdater<T>) => {
-      const previousValue = value;
-
-      const nextValue =
-        typeof valueOrUpdater === "function"
-          ? (valueOrUpdater as Updater<T>)(previousValue)
-          : valueOrUpdater;
-
-      if (Object.is(nextValue, previousValue)) return;
-
-      value = nextValue;
-
-      subscriberSet.forEach((subscriber) =>
-        subscriber(nextValue, previousValue)
-      );
-    },
-    subscribe: (handler) => subscriberSet.add(handler),
-    unsubscribe: (handler) => subscriberSet.delete(handler),
+    get,
+    set,
+    subscribe,
+    unsubscribe,
   };
 }
