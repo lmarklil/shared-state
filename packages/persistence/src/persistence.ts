@@ -1,4 +1,10 @@
-import { Updater, ValueOrUpdater, createSharedState } from "@shared-state/core";
+import {
+  Getter,
+  ValueOrGetter,
+  Updater,
+  ValueOrUpdater,
+  createSharedState,
+} from "@shared-state/core";
 import {
   PersistenceSharedState,
   PersistenceOptions,
@@ -9,7 +15,7 @@ import {
 export function createPersistenceSharedState<T>(
   storage: PersistenceStorage<PersistenceValue>,
   key: string,
-  initialValue: T,
+  initialValueOrGetter: ValueOrGetter<T>,
   options?: PersistenceOptions<T>
 ): PersistenceSharedState<T> {
   const version = options?.version;
@@ -24,32 +30,35 @@ export function createPersistenceSharedState<T>(
 
   const onMutationEnd = options?.onMutationEnd;
 
-  const sharedState = createSharedState(initialValue);
+  const sharedState = createSharedState(initialValueOrGetter);
 
   const hydrationState = createSharedState(false);
 
   const mutationState = createSharedState(false);
 
-  let lastHydrationTime: number | null = null;
+  let lastHydrationTime = 0;
 
-  let lastMutationTime: number | null = null;
+  let lastMutationTime = 0;
 
-  const hydratePersistenceValueToSharedState = (
+  const getInitialValue = () =>
+    typeof initialValueOrGetter === "function"
+      ? (initialValueOrGetter as Getter<T>)()
+      : initialValueOrGetter;
+
+  const persistentValueToSharedStateValue: (
     persistentValue: PersistenceValue | null
-  ) => {
-    if (persistentValue !== null) {
-      if (persistentValue.version === version) {
-        sharedState.set(persistentValue.value);
-      } else {
-        if (!migrator) return;
+  ) => T = (persistentValue) => {
+    if (persistentValue === null) return getInitialValue();
 
-        if (Object.hasOwn(persistentValue, "value")) {
-          sharedState.set(
-            migrator(persistentValue.value, persistentValue.version)
-          );
-        } else {
-          sharedState.set(migrator(persistentValue)); // persistentValue有可能是不支持的数据结构，此时将完整的值返回给用户处理
-        }
+    if (persistentValue.version === version) {
+      return persistentValue.value;
+    } else {
+      if (!migrator) return getInitialValue();
+
+      if (Object.hasOwn(persistentValue, "value")) {
+        return migrator(persistentValue.value, persistentValue.version);
+      } else {
+        return migrator(persistentValue); // persistentValue有可能是不支持的数据结构，此时将完整的值返回给用户处理
       }
     }
   };
@@ -64,11 +73,9 @@ export function createPersistenceSharedState<T>(
     lastHydrationTime = hydrationTime;
 
     const commit = (persistentValue: PersistenceValue | null) => {
-      if (lastHydrationTime !== hydrationTime) return;
+      if (lastHydrationTime > hydrationTime) return;
 
-      if (lastMutationTime === null || hydrationTime > lastMutationTime) {
-        hydratePersistenceValueToSharedState(persistentValue);
-      }
+      sharedState.set(persistentValueToSharedStateValue(persistentValue));
 
       hydrationState.set(false);
 
@@ -76,7 +83,7 @@ export function createPersistenceSharedState<T>(
     };
 
     const throwError = (error: any) => {
-      if (lastHydrationTime !== hydrationTime) return;
+      if (lastHydrationTime > hydrationTime) return;
 
       hydrationState.set(false);
 
@@ -98,8 +105,6 @@ export function createPersistenceSharedState<T>(
     }
   };
 
-  hydrate();
-
   storage.subscribe?.((updateKey, nextValue, previousValue) => {
     if (updateKey !== key || Object.is(nextValue, previousValue)) return;
 
@@ -112,28 +117,28 @@ export function createPersistenceSharedState<T>(
     lastHydrationTime = hydrationTime;
 
     try {
-      if (lastHydrationTime !== hydrationTime) return;
+      if (lastHydrationTime > hydrationTime) return;
 
-      if (nextValue !== null) {
-        // 根据数据最后修改时间来确定是否用存储数据覆盖本地状态
-        if (
-          lastMutationTime === null ||
-          nextValue.lastModified > lastMutationTime
-        ) {
-          hydratePersistenceValueToSharedState(nextValue);
-        }
-      } else {
-        // 清空操作暂时无法判断是在lastMutation之前还是之后发生的，所以我们还是按照数据至上的原则，根据hydrationTime是否大于lastMutationTime来确定是否清除数据
-        if (lastMutationTime === null || hydrationTime > lastMutationTime) {
-          sharedState.set(initialValue);
-        }
+      // 解决hydartion冲突，默认的策略是保留最新的数据，当nextValue为null时保留本地数据
+      if (options?.merge) {
+        sharedState.set(
+          options.merge(
+            persistentValueToSharedStateValue(nextValue),
+            sharedState.get()
+          )
+        );
+      } else if (
+        nextValue !== null &&
+        nextValue.lastModified > lastMutationTime
+      ) {
+        sharedState.set(persistentValueToSharedStateValue(nextValue));
       }
 
       hydrationState.set(false);
 
       onHydrationEnd?.();
     } catch (error) {
-      if (lastHydrationTime !== hydrationTime) return;
+      if (lastHydrationTime > hydrationTime) return;
 
       hydrationState.set(false);
 
@@ -195,8 +200,29 @@ export function createPersistenceSharedState<T>(
   };
 
   return {
-    get: sharedState.get,
-    set: mutate,
+    hydrate,
+    get: () => {
+      if (!lastHydrationTime && !lastMutationTime) {
+        hydrate();
+      }
+
+      return sharedState.get();
+    },
+    set: (valueOrUpdator) => {
+      if (hydrationState.get()) {
+        const handler = (hydrating: boolean) => {
+          if (!hydrating) {
+            mutate(valueOrUpdator);
+
+            hydrationState.unsubscribe(handler);
+          }
+        };
+
+        hydrationState.subscribe(handler);
+      } else {
+        mutate(valueOrUpdator);
+      }
+    },
     subscribe: sharedState.subscribe,
     unsubscribe: sharedState.unsubscribe,
     hydrationState,
