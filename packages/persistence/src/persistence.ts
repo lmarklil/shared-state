@@ -36,9 +36,7 @@ export function createPersistenceSharedState<T>(
 
   const mutationState = createSharedState(false);
 
-  let lastHydrationTime = 0;
-
-  let lastMutationTime = 0;
+  let lastModified = 0;
 
   const getInitialValue = () =>
     typeof initialValueOrGetter === "function"
@@ -63,31 +61,52 @@ export function createPersistenceSharedState<T>(
     }
   };
 
+  const pendingTaskQueue: (() => void)[] = [];
+
+  const resolveNextPendingTask = () => {
+    if (pendingTaskQueue.length > 0) {
+      const task = pendingTaskQueue.shift();
+
+      task?.();
+    }
+  };
+
   const hydrate = () => {
+    const pending = hydrationState.get() || mutationState.get();
+
+    if (pending) {
+      pendingTaskQueue.splice(0);
+      pendingTaskQueue.push(() => hydrate());
+      return;
+    }
+
     onHydrationStart?.();
 
     hydrationState.set(true);
 
-    const hydrationTime = new Date().getTime();
-
-    lastHydrationTime = hydrationTime;
-
     const commit = (persistentValue: PersistenceValue | null) => {
-      if (lastHydrationTime > hydrationTime) return;
+      if (
+        persistentValue !== null &&
+        persistentValue.lastModified > lastModified
+      ) {
+        sharedState.set(persistentValueToSharedStateValue(persistentValue));
 
-      sharedState.set(persistentValueToSharedStateValue(persistentValue));
+        lastModified = persistentValue.lastModified;
+      }
 
       hydrationState.set(false);
 
       onHydrationEnd?.();
+
+      resolveNextPendingTask();
     };
 
     const throwError = (error: any) => {
-      if (lastHydrationTime > hydrationTime) return;
-
       hydrationState.set(false);
 
       onHydrationEnd?.(error);
+
+      resolveNextPendingTask();
     };
 
     try {
@@ -106,54 +125,44 @@ export function createPersistenceSharedState<T>(
   };
 
   storage.subscribe?.((updateKey, nextValue, previousValue) => {
-    if (updateKey !== key || Object.is(nextValue, previousValue)) return;
+    if (
+      updateKey !== key ||
+      Object.is(nextValue, previousValue) ||
+      (nextValue && nextValue.lastModified < lastModified)
+    )
+      return;
 
-    onHydrationStart?.();
+    sharedState.set(persistentValueToSharedStateValue(nextValue));
 
-    hydrationState.set(true);
-
-    const hydrationTime = new Date().getTime();
-
-    lastHydrationTime = hydrationTime;
-
-    try {
-      if (lastHydrationTime > hydrationTime) return;
-
-      // 解决hydartion冲突，默认的策略是保留最新的数据，当nextValue为null时保留本地数据
-      if (options?.merge) {
-        sharedState.set(
-          options.merge(
-            persistentValueToSharedStateValue(nextValue),
-            sharedState.get()
-          )
-        );
-      } else if (
-        nextValue !== null &&
-        nextValue.lastModified > lastMutationTime
-      ) {
-        sharedState.set(persistentValueToSharedStateValue(nextValue));
-      }
-
-      hydrationState.set(false);
-
-      onHydrationEnd?.();
-    } catch (error) {
-      if (lastHydrationTime > hydrationTime) return;
-
-      hydrationState.set(false);
-
-      onHydrationEnd?.(error);
-    }
+    lastModified = nextValue?.lastModified ?? new Date().getTime();
   });
 
   const mutate = (valueOrUpdater: ValueOrUpdater<T>) => {
+    if (typeof valueOrUpdater === "function" && !lastModified) {
+      hydrate();
+
+      pendingTaskQueue.push(() => mutate(valueOrUpdater));
+
+      return;
+    }
+
+    const pending = hydrationState.get() || mutationState.get();
+
+    if (pending) {
+      if (typeof valueOrUpdater !== "function") {
+        pendingTaskQueue.splice(0);
+      }
+
+      pendingTaskQueue.push(() => mutate(valueOrUpdater));
+
+      return;
+    }
+
     onMutationStart?.();
 
     mutationState.set(true);
 
-    const mutationTime = new Date().getTime();
-
-    lastMutationTime = mutationTime;
+    const time = new Date().getTime();
 
     const previousValue = sharedState.get();
 
@@ -163,28 +172,32 @@ export function createPersistenceSharedState<T>(
         : valueOrUpdater;
 
     const commit = () => {
-      if (lastMutationTime !== mutationTime) return;
+      if (time > lastModified) {
+        sharedState.set(nextValue);
 
-      sharedState.set(nextValue);
+        lastModified = time;
+      }
 
       mutationState.set(false);
 
       onMutationEnd?.();
+
+      resolveNextPendingTask();
     };
 
     const throwError = (error: any) => {
-      if (lastMutationTime !== mutationTime) return;
-
       mutationState.set(false);
 
       onMutationEnd?.(error);
+
+      resolveNextPendingTask();
     };
 
     try {
       const setStorageResult = storage.set(key, {
         value: nextValue,
         version,
-        lastModified: mutationTime,
+        lastModified: time,
       });
 
       if (setStorageResult instanceof Promise) {
@@ -202,27 +215,11 @@ export function createPersistenceSharedState<T>(
   return {
     hydrate,
     get: () => {
-      if (!lastHydrationTime && !lastMutationTime) {
-        hydrate();
-      }
+      if (!lastModified) hydrate();
 
       return sharedState.get();
     },
-    set: (valueOrUpdator) => {
-      if (hydrationState.get()) {
-        const handler = (hydrating: boolean) => {
-          if (!hydrating) {
-            mutate(valueOrUpdator);
-
-            hydrationState.unsubscribe(handler);
-          }
-        };
-
-        hydrationState.subscribe(handler);
-      } else {
-        mutate(valueOrUpdator);
-      }
-    },
+    set: mutate,
     subscribe: sharedState.subscribe,
     unsubscribe: sharedState.unsubscribe,
     hydrationState,
