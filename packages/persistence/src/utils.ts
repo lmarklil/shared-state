@@ -83,8 +83,8 @@ export function createWebPersistenceStorage(
 
   return withConverter(
     {
-      get: (key) => webStorage.getItem(key),
-      set: (key, value) => webStorage.setItem(key, value),
+      get: (key) => webStorage.getItem(String(key)),
+      set: (key, value) => webStorage.setItem(String(key), value),
       subscribe: (handler) => {
         const storageEventHandler = (event: StorageEvent) =>
           event.key && handler(event.key, event.newValue, event.oldValue);

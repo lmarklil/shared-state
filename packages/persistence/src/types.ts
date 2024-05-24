@@ -1,5 +1,7 @@
 import { SharedState } from "@shared-state/core";
 
+export type PersistenceKey = string | number;
+
 export type PersistenceValue = {
   value: any;
   version?: string | number | undefined;
@@ -7,14 +9,14 @@ export type PersistenceValue = {
 };
 
 export type PersistenceStorageSubscriber<T> = (
-  key: string,
+  key: PersistenceKey,
   nextValue: T | null,
   previousValue: T | null
 ) => void;
 
 export type PersistenceStorage<T> = {
-  get: (key: string) => (T | null) | Promise<T | null>;
-  set: (key: string, value: T) => void | Promise<void>;
+  get: (key: PersistenceKey) => (T | null) | Promise<T | null>;
+  set: (key: PersistenceKey, value: T) => void | Promise<void>;
   subscribe?: ((handler: PersistenceStorageSubscriber<T>) => void) | undefined;
   unsubscribe?:
     | ((handler: PersistenceStorageSubscriber<T>) => void)

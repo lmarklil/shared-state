@@ -10,11 +10,12 @@ import {
   PersistenceOptions,
   PersistenceValue,
   PersistenceStorage,
+  PersistenceKey,
 } from "./types";
 
 export function createPersistenceSharedState<T>(
   storage: PersistenceStorage<PersistenceValue>,
-  key: string,
+  key: PersistenceKey,
   initialValueOrGetter: ValueOrGetter<T>,
   options?: PersistenceOptions<T>
 ): PersistenceSharedState<T> {
@@ -138,7 +139,11 @@ export function createPersistenceSharedState<T>(
   });
 
   const mutate = (valueOrUpdater: ValueOrUpdater<T>) => {
-    if (typeof valueOrUpdater === "function" && !lastModified) {
+    if (
+      typeof valueOrUpdater === "function" &&
+      !lastModified &&
+      !hydrationState.get()
+    ) {
       hydrate();
 
       pendingTaskQueue.push(() => mutate(valueOrUpdater));
@@ -158,18 +163,20 @@ export function createPersistenceSharedState<T>(
       return;
     }
 
-    onMutationStart?.();
-
-    mutationState.set(true);
-
-    const time = new Date().getTime();
-
     const previousValue = sharedState.get();
 
     const nextValue =
       typeof valueOrUpdater === "function"
         ? (valueOrUpdater as Updater<T>)(previousValue)
         : valueOrUpdater;
+
+    if (Object.is(nextValue, previousValue)) return;
+
+    onMutationStart?.();
+
+    mutationState.set(true);
+
+    const time = new Date().getTime();
 
     const commit = () => {
       if (time > lastModified) {
@@ -215,7 +222,7 @@ export function createPersistenceSharedState<T>(
   return {
     hydrate,
     get: () => {
-      if (!lastModified) hydrate();
+      if (!lastModified && !hydrationState.get()) hydrate();
 
       return sharedState.get();
     },
