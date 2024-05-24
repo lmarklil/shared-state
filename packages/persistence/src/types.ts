@@ -30,7 +30,6 @@ export type PersistenceSharedState<T> = SharedState<T> & {
 export type PersistenceOptions<T> = {
   version?: string | number;
   migrator?: (value: PersistenceValue, version?: number | string) => T;
-  merge?: (nextValue: T, previousValue: T) => T;
   onHydrationStart?: () => void;
   onHydrationEnd?: (error?: any) => void;
   onMutationStart?: () => void;
