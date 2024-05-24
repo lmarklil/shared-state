@@ -39,6 +39,8 @@ export function createPersistenceSharedState<T>(
 
   let lastModified = 0;
 
+  let hydrated = false;
+
   const getInitialValue = () =>
     typeof initialValueOrGetter === "function"
       ? (initialValueOrGetter as Getter<T>)()
@@ -80,6 +82,8 @@ export function createPersistenceSharedState<T>(
       pendingTaskQueue.push(() => hydrate());
       return;
     }
+
+    hydrated = true;
 
     onHydrationStart?.();
 
@@ -139,11 +143,7 @@ export function createPersistenceSharedState<T>(
   });
 
   const mutate = (valueOrUpdater: ValueOrUpdater<T>) => {
-    if (
-      typeof valueOrUpdater === "function" &&
-      !lastModified &&
-      !hydrationState.get()
-    ) {
+    if (typeof valueOrUpdater === "function" && !hydrated && !lastModified) {
       hydrate();
 
       pendingTaskQueue.push(() => mutate(valueOrUpdater));
@@ -222,7 +222,7 @@ export function createPersistenceSharedState<T>(
   return {
     hydrate,
     get: () => {
-      if (!lastModified && !hydrationState.get()) hydrate();
+      if (!hydrated && !lastModified) hydrate();
 
       return sharedState.get();
     },
