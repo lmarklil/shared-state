@@ -1,4 +1,4 @@
-import { useCallback } from "react";
+import { useCallback, useRef } from "react";
 import { useSyncExternalStoreWithSelector } from "use-sync-external-store/shim/with-selector";
 import { SharedState } from "@shared-state/core";
 import { Selector, Comparator } from "./types";
@@ -12,19 +12,43 @@ export function useSharedStateValue<Value, SelectedValue = Value>(
   selector: Selector<Value, SelectedValue> = defaultSelector as any,
   comparator?: Comparator<SelectedValue>
 ) {
+  const cacheRef = useRef<Value>();
+
+  const subscribedRef = useRef(false);
+
   const subscribe = useCallback(
     (onStoreChange: () => void) => {
       sharedState.subscribe(onStoreChange);
 
-      return () => sharedState.unsubscribe(onStoreChange);
+      subscribedRef.current = true;
+
+      return () => {
+        sharedState.unsubscribe(onStoreChange);
+
+        subscribedRef.current = false;
+      };
     },
     [sharedState]
   );
 
+  const getSnapshot = useCallback(() => {
+    if (subscribedRef.current) {
+      cacheRef.current = undefined;
+
+      return sharedState.get();
+    } else {
+      if (cacheRef.current === undefined) {
+        cacheRef.current = sharedState.get();
+      }
+
+      return cacheRef.current;
+    }
+  }, [sharedState]);
+
   return useSyncExternalStoreWithSelector(
     subscribe,
-    sharedState.get,
-    sharedState.get,
+    getSnapshot,
+    getSnapshot,
     selector,
     comparator
   );
