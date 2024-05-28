@@ -34,6 +34,8 @@ export function createPersistenceSharedState<T>(
 
   const sharedState = createSharedState(initialValueOrGetter);
 
+  let subscriberCount = 0;
+
   const hydrationState = createSharedState(false);
 
   const mutationState = createSharedState(false);
@@ -230,18 +232,21 @@ export function createPersistenceSharedState<T>(
       return sharedState.get();
     },
     set: mutate,
-    hasSubscriber: sharedState.hasSubscriber,
     subscribe: (handler) => {
-      if (!sharedState.hasSubscriber()) {
+      if (subscriberCount === 0) {
         storage.subscribe?.(storageSubscribeHandler);
       }
 
       sharedState.subscribe(handler);
+
+      subscriberCount++;
     },
     unsubscribe: (handler) => {
       sharedState.unsubscribe(handler);
 
-      if (!sharedState.hasSubscriber()) {
+      subscriberCount--;
+
+      if (subscriberCount === 0) {
         storage.unsubscribe?.(storageSubscribeHandler);
       }
     },
