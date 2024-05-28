@@ -16,8 +16,6 @@ export function createSharedState<T>(
 
   const subscriberSet = new Set<Subscriber<T>>();
 
-  const hasSubscriber = () => subscriberSet.size > 0;
-
   const get = () => {
     if (value === undefined) {
       value =
@@ -51,7 +49,6 @@ export function createSharedState<T>(
   return {
     get,
     set,
-    hasSubscriber,
     subscribe,
     unsubscribe,
   };
@@ -66,8 +63,6 @@ export function createDerivedSharedState<T>(
   let dependencySet: Set<SharedState<any>> | undefined;
 
   const subscriberSet = new Set<Subscriber<T>>();
-
-  const hasSubscriber = () => subscriberSet.size > 0;
 
   const get = () =>
     value !== undefined ? value : getter((sharedState) => sharedState.get());
@@ -126,9 +121,8 @@ export function createDerivedSharedState<T>(
   return {
     get,
     set,
-    hasSubscriber,
     subscribe: (handler) => {
-      if (!hasSubscriber()) {
+      if (subscriberSet.size === 0) {
         const nextDependencySet = new Set<SharedState<any>>();
 
         value = getter((sharedState) => {
@@ -147,7 +141,7 @@ export function createDerivedSharedState<T>(
     unsubscribe: (handler) => {
       subscriberSet.delete(handler);
 
-      if (!hasSubscriber()) {
+      if (subscriberSet.size === 0) {
         if (dependencySet !== undefined) {
           dependencySet.forEach((sharedState) =>
             sharedState.unsubscribe(updateValueAndDependency)

@@ -11,7 +11,6 @@ export type ValueOrUpdater<T> = T | Updater<T>;
 export type SharedState<T> = {
   get: () => T;
   set: (valueOrUpdater: ValueOrUpdater<T>) => void;
-  hasSubscriber: () => boolean;
   subscribe: (handler: Subscriber<T>) => void;
   unsubscribe: (handler: Subscriber<T>) => void;
 };
