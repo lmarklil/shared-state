@@ -11,6 +11,7 @@ import {
   PersistenceValue,
   PersistenceStorage,
   PersistenceKey,
+  PersistenceStorageSubscriber,
 } from "./types";
 
 export function createPersistenceSharedState<T>(
@@ -129,19 +130,6 @@ export function createPersistenceSharedState<T>(
     }
   };
 
-  storage.subscribe?.((updateKey, nextValue, previousValue) => {
-    if (
-      updateKey !== key ||
-      Object.is(nextValue, previousValue) ||
-      (nextValue && nextValue.lastModified < lastModified)
-    )
-      return;
-
-    sharedState.set(persistentValueToSharedStateValue(nextValue));
-
-    lastModified = nextValue?.lastModified ?? new Date().getTime();
-  });
-
   const mutate = (valueOrUpdater: ValueOrUpdater<T>) => {
     if (typeof valueOrUpdater === "function" && !hydrated && !lastModified) {
       hydrate();
@@ -219,6 +207,21 @@ export function createPersistenceSharedState<T>(
     }
   };
 
+  const storageSubscribeHandler: PersistenceStorageSubscriber<
+    PersistenceValue
+  > = (updateKey, nextValue, previousValue) => {
+    if (
+      updateKey !== key ||
+      Object.is(nextValue, previousValue) ||
+      (nextValue && nextValue.lastModified < lastModified)
+    )
+      return;
+
+    sharedState.set(persistentValueToSharedStateValue(nextValue));
+
+    lastModified = nextValue?.lastModified ?? new Date().getTime();
+  };
+
   return {
     hydrate,
     get: () => {
@@ -227,8 +230,21 @@ export function createPersistenceSharedState<T>(
       return sharedState.get();
     },
     set: mutate,
-    subscribe: sharedState.subscribe,
-    unsubscribe: sharedState.unsubscribe,
+    hasSubscriber: sharedState.hasSubscriber,
+    subscribe: (handler) => {
+      if (!sharedState.hasSubscriber()) {
+        storage.subscribe?.(storageSubscribeHandler);
+      }
+
+      sharedState.subscribe(handler);
+    },
+    unsubscribe: (handler) => {
+      sharedState.unsubscribe(handler);
+
+      if (!sharedState.hasSubscriber()) {
+        storage.unsubscribe?.(storageSubscribeHandler);
+      }
+    },
     hydrationState,
     mutationState,
   };
