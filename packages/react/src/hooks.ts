@@ -1,18 +1,9 @@
 import { useCallback, useRef } from "react";
-import { useSyncExternalStoreWithSelector } from "use-sync-external-store/shim/with-selector";
+import { useSyncExternalStore } from "use-sync-external-store/shim";
 import { SharedState } from "@shared-state/core";
-import { Selector, Comparator } from "./types";
 
-function defaultSelector<T>(value: T) {
-  return value;
-}
-
-export function useSharedStateValue<Value, SelectedValue = Value>(
-  sharedState: SharedState<Value>,
-  selector: Selector<Value, SelectedValue> = defaultSelector as any,
-  comparator?: Comparator<SelectedValue>
-) {
-  const cacheRef = useRef<Value>();
+export function useSharedStateValue<T>(sharedState: SharedState<T>) {
+  const cacheRef = useRef<T>();
 
   const subscribedRef = useRef(false);
 
@@ -45,13 +36,7 @@ export function useSharedStateValue<Value, SelectedValue = Value>(
     }
   }, [sharedState]);
 
-  return useSyncExternalStoreWithSelector(
-    subscribe,
-    getSnapshot,
-    getSnapshot,
-    selector,
-    comparator
-  );
+  return useSyncExternalStore(subscribe, getSnapshot, getSnapshot);
 }
 
 export function useSetSharedStateValue<T>(sharedState: SharedState<T>) {
