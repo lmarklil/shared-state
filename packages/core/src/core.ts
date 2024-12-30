@@ -65,7 +65,9 @@ export function createDerivedSharedState<T>(
   const subscriberSet = new Set<Subscriber<T>>();
 
   const get = () =>
-    value !== undefined ? value : getter((sharedState) => sharedState.get());
+    subscriberSet.size > 0
+      ? (value as T)
+      : getter((sharedState) => sharedState.get());
 
   const set = (valueOrUpdater: ValueOrUpdater<T>) => {
     if (!setter) return;
@@ -82,7 +84,7 @@ export function createDerivedSharedState<T>(
     setter(nextValue);
   };
 
-  const updateValueAndDependency = () => {
+  const updateValueAndDependencySet = () => {
     const previousValue = get();
 
     const previousDependencySet = dependencySet;
@@ -99,13 +101,13 @@ export function createDerivedSharedState<T>(
       nextDependencySet.forEach(
         (sharedState) =>
           !previousDependencySet.has(sharedState) &&
-          sharedState.subscribe(updateValueAndDependency)
+          sharedState.subscribe(updateValueAndDependencySet)
       );
 
       previousDependencySet.forEach(
         (sharedState) =>
           !nextDependencySet.has(sharedState) &&
-          sharedState.unsubscribe(updateValueAndDependency)
+          sharedState.unsubscribe(updateValueAndDependencySet)
       );
     }
 
@@ -126,7 +128,7 @@ export function createDerivedSharedState<T>(
         const nextDependencySet = new Set<SharedState<any>>();
 
         value = getter((sharedState) => {
-          sharedState.subscribe(updateValueAndDependency);
+          sharedState.subscribe(updateValueAndDependencySet);
 
           nextDependencySet.add(sharedState);
 
@@ -144,13 +146,13 @@ export function createDerivedSharedState<T>(
       if (subscriberSet.size === 0) {
         if (dependencySet !== undefined) {
           dependencySet.forEach((sharedState) =>
-            sharedState.unsubscribe(updateValueAndDependency)
+            sharedState.unsubscribe(updateValueAndDependencySet)
           );
 
           dependencySet = undefined;
-
-          value = undefined;
         }
+
+        value = undefined;
       }
     },
   };
